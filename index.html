@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Custom PDF Viewer</title>
+  <title>Binas Digitaal</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -76,6 +76,7 @@
       font-size: 12px;
       color: var(--muted);
       font-weight: 600;
+      white-space: nowrap;
     }
 
     .file-picker {
@@ -207,6 +208,39 @@
       font-size: 13px;
       color: #1f2937;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-group-header.theme-algemeen {
+      background: #c94195;
+      color: #ffffff;
+      border-color: #c94195;
+    }
+
+    .nav-group-header.theme-natuurkunde {
+      background: #0163ac;
+      color: #ffffff;
+      border-color: #0163ac;
+    }
+
+    .nav-group-header.theme-wiskunde {
+      background: #a0341a;
+      color: #ffffff;
+      border-color: #a0341a;
+    }
+
+    .nav-group-header.theme-scheikunde {
+      background: #ff3b2d;
+      color: #ffffff;
+      border-color: #ff3b2d;
+    }
+
+    .nav-group-header.theme-biologie {
+      background: #2c9a44;
+      color: #ffffff;
+      border-color: #2c9a44;
     }
 
     .nav-group ul {
@@ -391,8 +425,10 @@
     }
 
     canvas.page-canvas {
-      width: 100%;
+      width: auto;
+      max-width: 100%;
       height: auto;
+      display: block;
       background: #ffffff;
       border: 1px solid #e5e7eb;
     }
@@ -425,8 +461,8 @@
             <path d="M9 8h2" />
           </svg>
           <div class="text">
-            <p class="brand-title">Binas PDF Studio</p>
-            <p class="brand-subtitle">Overzicht & snelle toegang</p>
+            <p class="brand-title">Digitale Binas</p>
+            <p class="brand-subtitle">Gemaakt door Roy van der Sande</p>
           </div>
         </div>
         <div class="file-picker">
@@ -434,7 +470,7 @@
           <input id="file-input" type="file" accept="application/pdf" />
         </div>
         <div class="nav-header">
-          <h2 class="no-select">Onderwerpen</h2>
+          <h2 class="no-select">INHOUD BiNaS</h2>
           <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
@@ -514,13 +550,7 @@
         </div>
 
         <div class="toolbar-group" aria-label="Weergave">
-          <button id="toggle-view" class="primary" title="Schakel tussen 1 of 2 pagina's">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="8" height="16" rx="2" />
-              <rect x="13" y="4" width="8" height="16" rx="2" />
-            </svg>
-            <span>Weergave</span>
-          </button>
+          <button id="toggle-view" title="Schakel tussen 1 of 2 pagina's"></button>
         </div>
 
         <div class="toolbar-status no-select">
@@ -574,302 +604,439 @@
     let currentPage = 1;
     let scale = 1;
     let isSpread = false;
-    const minScale = 0.5;
-    const maxScale = 3;
+    let fitMode = null;
+    const minScale = 0.2;
+    const maxScale = 4;
     const scaleStep = 0.15;
+
+    const singlePageIcon = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6" y="4" width="12" height="16" rx="2" />
+      </svg>
+    `;
+
+    const spreadIcon = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="8" height="16" rx="2" />
+        <rect x="13" y="4" width="8" height="16" rx="2" />
+      </svg>
+    `;
 
     const navigationData = [
       {
         section: 'Algemeen',
+        theme: 'algemeen',
         items: [
-          { title: 'Grieks alfabet', page: 6 },
-          { title: 'Vermenigvuldigingsfactoren', page: 8 },
-          { title: 'Basisgrootheden en grondeenheden in het SI', page: 10 },
-          { title: 'Grootheden en eenheden in het SI', page: 12 },
-          { title: 'Omrekencoefficiënten van eenheden', page: 18 },
+          { title: '1 – Grieks alfabet', page: 5 },
+          { title: '2 – Vermenigvuldigingsfactoren', page: 6 },
+          { title: '3 – Basisgrootheden en grondeenheden in het SI', page: 7 },
+          { title: '4 – Grootheden en eenheden in het SI', page: 9 },
+          { title: '5 – Omrekencoefficiënten van eenheden', page: 12 },
           {
-            title: 'Machten van tien',
-            page: 20,
+            title: '6 – Machten van tien',
+            page: 14,
             children: [
-              { title: 'A. Massa', page: 21 },
-              { title: 'B. Tijd', page: 22 },
-              { title: 'C. Temperatuur', page: 23 },
-              { title: 'D. Energie', page: 24 },
+              { title: 'A. Massa', page: 14 },
+              { title: 'B. Tijd', page: 14 },
+              { title: 'C. Temperatuur', page: 15 },
+              { title: 'D. Energie', page: 15 },
             ],
           },
         ],
       },
       {
         section: 'Natuurkunde',
+        theme: 'natuurkunde',
         items: [
           {
             title: '7 – Waarden van enige constanten',
-            page: 28,
+            page: 18,
             children: [
-              { title: 'A. Natuurconstanten', page: 29 },
-              { title: 'B. Massa en energie', page: 31 },
-              { title: 'C. Planck-eenheden', page: 32 },
+              { title: 'A. Natuurconstanten', page: 18 },
+              { title: 'B. Massa en energie', page: 19 },
+              { title: 'C. Planck-eenheden', page: 20 },
             ],
           },
-          { title: '8 – Gegevens van metalen', page: 35 },
-          { title: '9 – Gegevens van vlamgassen', page: 40 },
+          { title: '8 – Gegevens van metalen', page: 23 },
+          { title: '9 – Gegevens van vlamgassen', page: 25 },
           {
             title: '10 – Gegevens van vaste stoffen',
-            page: 45,
+            page: 27,
             children: [
-              { title: 'A. Fysische eigenschappen', page: 46 },
-              { title: 'B. Materiaaleigenschappen', page: 48 },
+              { title: 'A. Fysische eigenschappen', page: 27 },
+              { title: 'B. Materiaaleigenschappen', page: 29 },
             ],
           },
-          { title: '11 – Gegevens van vloeistoffen', page: 52 },
-          { title: '12 – Gegevens van gassen en dampen', page: 58 },
+          { title: '11 – Gegevens van vloeistoffen', page: 31 },
+          { title: '12 – Gegevens van gassen en dampen', page: 33 },
           {
             title: '13 – Verzadigingsdrukken',
-            page: 64,
+            page: 35,
             children: [
-              { title: 'A. Water', page: 65 },
-              { title: 'B. CO₂, propaan, butaan, etheen, alcohol, water', page: 66 },
+              { title: 'A. Water', page: 35 },
+              { title: 'B. CO₂, propaan, butaan, etheen, alcohol, water', page: 36 },
             ],
           },
-          { title: '14 – Kook- en smeltpunten', page: 70 },
+          { title: '14 – Kook- en smeltpunten', page: 39 },
           {
             title: '15 – Geluid',
-            page: 76,
+            page: 42,
             children: [
-              { title: 'A. Voortplantingssnelheden', page: 77 },
-              { title: 'B. Absorptiecoëfficiënten', page: 78 },
-              { title: 'C. Muziek', page: 80 },
-              { title: 'D. Akoestische schaal voor de mens', page: 82 },
+              { title: 'A. Voortplantingssnelheden', page: 42 },
+              { title: 'B. Absorptiecoëfficiënten', page: 43 },
+              { title: 'C. Muziek', page: 43 },
+              { title: 'D. Akoestische schaal', page: 44 },
             ],
           },
           {
             title: '16 – Elektriciteit en magnetisme',
-            page: 86,
+            page: 47,
             children: [
-              { title: 'A. Relatieve diëlektrische constanten', page: 87 },
-              { title: 'B. Soorten magneten', page: 88 },
-              { title: 'C. Halogeenlampen en spaarlampen', page: 90 },
-              { title: 'D. Thermo-elektriciteit', page: 92 },
-              { title: 'E. Elektromagneten', page: 93 },
-              { title: 'F. Kleuren', page: 94 },
-              { title: 'G. Elektrotechnische symbolen', page: 96 },
-              { title: 'H. Digitale schakelingen', page: 98 },
+              { title: 'A. Relatieve diëlektrische constanten', page: 47 },
+              { title: 'B. Soorten magneten', page: 48 },
+              { title: 'C. Halogeen- & spaarlampen', page: 49 },
+              { title: 'D. Thermo-elektriciteit', page: 50 },
+              { title: 'E. Elektromagneten', page: 50 },
+              { title: 'F. Kleuren', page: 51 },
+              { title: 'G. Elektrotechnische symbolen', page: 52 },
+              { title: 'H. Digitale schakelingen', page: 53 },
             ],
           },
-          { title: '17 – Brekingsindices', page: 102 },
+          { title: '17 – Brekingsindices', page: 56 },
           {
             title: '18 – Elektromagnetisch spectrum',
-            page: 108,
+            page: 59,
             children: [
-              { title: 'A. Zichtbaar licht', page: 109 },
-              { title: 'B. Algemeen overzicht', page: 110 },
+              { title: 'A. Zichtbaar licht', page: 59 },
+              { title: 'B. Algemeen overzicht', page: 60 },
             ],
           },
-          { title: '19 – Spectraallijnen', page: 116 },
+          { title: '19 – Spectraallijnen', page: 62 },
           {
             title: '20 – Atoomfysica',
-            page: 120,
+            page: 64,
             children: [
-              { title: 'A. Als bolmodel', page: 121 },
-              { title: 'B. Ionisatie-energieën', page: 123 },
-              { title: 'C. Plasma', page: 125 },
-              { title: 'D. Spectra', page: 126 },
+              { title: 'A. Bolmodel', page: 64 },
+              { title: 'B. Ionisatie-energieën', page: 65 },
+              { title: 'C. Plasma', page: 66 },
+              { title: 'D. Spectra', page: 67 },
             ],
           },
-          { title: '21 – Planck-krommen', page: 130 },
+          { title: '21 – Planck-krommen', page: 70 },
         ],
       },
       {
         section: 'Natuurkunde vervolg',
+        theme: 'natuurkunde',
         items: [
-          { title: '23 – Quantummechanica', page: 136 },
-          { title: '24 – Foto-elektrisch effect', page: 140 },
+          { title: '23 – Quantummechanica', page: 74 },
+          { title: '24 – Foto-elektrisch effect', page: 76 },
           {
             title: '25 – Isotopen',
-            page: 146,
+            page: 78,
             children: [
-              { title: 'A. Isotopenblad', page: 147 },
-              { title: 'B. Isotopenkaart', page: 150 },
+              { title: 'A. Isotopenblad', page: 78 },
+              { title: 'B. Isotopenkaart', page: 80 },
             ],
           },
           {
-            title: '26 – Bouw en structuur van de materie',
-            page: 154,
+            title: '26 – Bouw & structuur van materie',
+            page: 82,
             children: [
-              { title: 'A. Elementaire deeltjes', page: 155 },
-              { title: 'B. Wisselwerkingsdeeltjes', page: 157 },
-              { title: 'C. Hadronen', page: 158 },
+              { title: 'A. Elementaire deeltjes', page: 82 },
+              { title: 'B. Wisselwerkingsdeeltjes', page: 83 },
+              { title: 'C. Hadronen', page: 84 },
             ],
           },
           {
             title: '27 – Biofysica',
-            page: 162,
+            page: 87,
             children: [
-              { title: 'A. Zicht', page: 163 },
-              { title: 'B. UV en huid', page: 164 },
-              { title: 'C. Geluid', page: 165 },
-              { title: 'D. Radioactiviteit', page: 167 },
+              { title: 'A. Zicht', page: 87 },
+              { title: 'B. Huid & UV', page: 88 },
+              { title: 'C. Geluid', page: 89 },
+              { title: 'D. Radioactiviteit', page: 90 },
             ],
           },
           {
-            title: '28 – Fysica en milieu',
-            page: 170,
+            title: '28 – Fysica & milieu',
+            page: 92,
             children: [
-              { title: 'A. Luchtverontreiniging', page: 171 },
-              { title: 'B. Stofconcentraties', page: 172 },
-              { title: 'C. Lichtabsorptie in water', page: 173 },
-              { title: 'D. Radioactiviteit – U-waarden', page: 174 },
-              { title: 'E. Geïoniseerde lucht', page: 176 },
-              { title: 'F. Bouwen/verbranding', page: 177 },
+              { title: 'A. Luchtverontreiniging', page: 92 },
+              { title: 'B. Stofconcentraties', page: 93 },
+              { title: 'C. Lichtabsorptie in water', page: 94 },
+              { title: 'D. Radioactiviteit (bouwmaterialen)', page: 95 },
+              { title: 'E. Zuiver geïoniseerde lucht', page: 96 },
+              { title: 'F. Verontreinigingscoëfficiënten processen', page: 96 },
             ],
           },
           {
             title: '29 – Medische beeldvorming',
-            page: 180,
+            page: 99,
             children: [
-              { title: 'A. Röntgen', page: 181 },
-              { title: 'B. Echo', page: 182 },
-              { title: 'C. MRI', page: 184 },
-              { title: 'D. PET', page: 186 },
+              { title: 'A. Röntgen', page: 99 },
+              { title: 'B. Echografie', page: 100 },
+              { title: 'C. MRI', page: 101 },
+              { title: 'D. PET', page: 102 },
             ],
           },
-          { title: '30 – Kosmische straling', page: 190 },
+          {
+            title: '30 – Kosmische straling',
+            page: 104,
+            children: [{ title: 'A. Samenvatting', page: 104 }],
+          },
           {
             title: '31 – Sterren',
-            page: 194,
+            page: 107,
             children: [
-              { title: 'A. Sterren en stelsels', page: 195 },
-              { title: 'B. HR-diagram', page: 197 },
-              { title: 'C. Kosmologie', page: 199 },
+              { title: 'A. Sterren & stelsels', page: 107 },
+              { title: 'B. HR-diagram', page: 108 },
+              { title: 'C. Kosmologie', page: 110 },
             ],
           },
           {
             title: '32 – Evolutie van sterren',
-            page: 202,
+            page: 114,
             children: [
-              { title: 'A. Stervorming', page: 203 },
-              { title: 'B. Sterren', page: 205 },
+              { title: 'A. Stervorming', page: 114 },
+              { title: 'B. Sterren', page: 115 },
               {
                 title: 'C. Beëindiging',
-                page: 208,
+                page: 116,
                 children: [
-                  { title: '1. Melkweg', page: 209 },
-                  { title: '2. Lokale groep', page: 210 },
-                  { title: '3. Clusters', page: 211 },
+                  { title: '1. De Melkweg', page: 118 },
+                  { title: '2. Lokale groep', page: 119 },
+                  { title: '3. Andere clusters', page: 120 },
                 ],
               },
-              { title: 'D. Achtergrondstraling', page: 214 },
-              { title: 'E. Oerknal', page: 216 },
+              { title: 'D. Kosmische achtergrondstraling', page: 122 },
+              { title: 'E. Oerknal & evolutie heelal', page: 123 },
             ],
           },
         ],
       },
       {
         section: 'Wiskunde',
+        theme: 'wiskunde',
         items: [
           {
             title: '36 – Wiskundeformules',
-            page: 222,
+            page: 130,
             children: [
-              { title: 'A. Verhoudingen', page: 223 },
-              { title: 'B. Lengtes/oppervlakken/volumes', page: 224 },
-              { title: 'C. Vertaaloefeningen', page: 226 },
-              { title: 'D. Machten/logaritmen', page: 228 },
-              { title: 'E. Cirkel/ellips/hyperbool', page: 230 },
-              { title: 'F. Differentiëren/integreren', page: 232 },
-              { title: 'G. Goniometrie', page: 236 },
-              { title: 'H. Rijen en reeksen', page: 238 },
-              { title: 'I. Notaties', page: 239 },
+              { title: 'A. Verhoudingen', page: 130 },
+              { title: 'B. Lengtes, oppervlakken, volumes', page: 131 },
+              { title: 'C. Vertaaloefeningen', page: 132 },
+              { title: 'D. Machten & logaritmen', page: 133 },
+              { title: 'E. Cirkel, ellips, hyperbool, parabool', page: 135 },
+              { title: 'F. Differentiëren & integreren', page: 137 },
+              { title: 'G. Goniometrie', page: 140 },
+              { title: 'H. Rijen & reeksen', page: 142 },
+              { title: 'I. Notaties', page: 143 },
             ],
           },
         ],
       },
       {
         section: 'Scheikunde',
+        theme: 'scheikunde',
         items: [
           {
             title: '37 – Scheikundeformules',
-            page: 244,
+            page: 150,
             children: [
-              { title: 'A. Reactiesnelheid', page: 245 },
-              { title: 'B. Evenwicht', page: 246 },
-              { title: 'C. Thermodynamica', page: 248 },
-              { title: 'D. Elektrochemie', page: 250 },
-              { title: 'E. Spectrometrie', page: 252 },
-              { title: 'F. Chromatografie', page: 254 },
-              { title: 'G. Basiswaarden', page: 255 },
-              { title: 'H. Hoeveelheid stof', page: 256 },
-              { title: 'I. Zuurmaat', page: 257 },
+              { title: 'A. Reactiesnelheid', page: 150 },
+              { title: 'B. Evenwicht', page: 151 },
+              { title: 'C. Thermodynamica', page: 152 },
+              { title: 'D. Elektrochemie', page: 154 },
+              { title: 'E. Spectrometrie', page: 155 },
+              { title: 'F. Chromatografie', page: 156 },
+              { title: 'G. Basiswaarden', page: 157 },
+              { title: 'H. Hoeveelheid stof', page: 158 },
+              { title: 'I. Zuurmaat', page: 158 },
             ],
           },
-          {
-            title: '38 – Scheikunde symbolen',
-            page: 260,
-            children: [
-              { title: 'A. Symbolen/eenheden', page: 261 },
-              { title: 'B. Structuurformules', page: 262 },
-            ],
-          },
+          { title: '38 – Chemische symbolen', page: 160 },
           {
             title: '39 – Spectrometrie',
-            page: 266,
+            page: 164,
             children: [
-              { title: 'A. UV/Vis', page: 267 },
-              { title: 'B. NMR', page: 268 },
-              { title: 'C. IR', page: 270 },
-              { title: 'D. Massa', page: 272 },
+              { title: 'A. UV/Vis', page: 164 },
+              { title: 'B. NMR', page: 165 },
+              { title: 'C. IR', page: 166 },
+              { title: 'D. MS', page: 167 },
             ],
           },
           {
             title: '40 – Elementen',
-            page: 276,
+            page: 170,
             children: [
-              { title: 'A. Gegevens', page: 277 },
-              { title: 'B. Oplosbaarheid/kernmassa', page: 278 },
+              { title: 'A. Gegevens', page: 170 },
+              { title: 'B. Oplosbaarheid, kernmassa, voorkomen', page: 171 },
             ],
           },
-          { title: '41 – Molair/molecuulgebonden', page: 282 },
-          { title: '42 – Smelt- en kookpunten', page: 284 },
-          { title: '43 – Oplosbaarheid van bindingen', page: 286 },
-          { title: '44 – Dichterheden en molaire massa’s', page: 288 },
-          { title: '45 – Dampdrukken', page: 292 },
-          { title: '46 – Evenwichtsreacties in water', page: 294 },
-          { title: '47 – Evenwicht zuren/basen', page: 295 },
-          { title: '48 – Sterk/zwak zuur', page: 298 },
-          { title: '49 – Zuur-base diagrammen', page: 300 },
+          { title: '41 – Molair & molecuulgebonden', page: 174 },
+          { title: '42 – Smelt- en kookpunten', page: 176 },
+          { title: '43 – Oplosbaarheid van bindingen', page: 177 },
+          { title: '44 – Dichterheden & molaire massa’s', page: 178 },
+          { title: '45 – Dampdrukken', page: 180 },
+          { title: '46 – Evenwichtsreacties in water', page: 182 },
+          { title: '47 – Evenwicht van zuren/basen, complexen', page: 184 },
+          { title: '48 – Sterk en zwak zuur', page: 186 },
+          { title: '49 – Zuur-base diagrammen', page: 188 },
           {
             title: '50 – Ionisatieconstanten',
-            page: 302,
-            children: [{ title: 'A. Water', page: 303 }],
+            page: 190,
+            children: [{ title: 'A. Water', page: 190 }],
           },
           {
             title: '51 – Bindingseigenschappen',
-            page: 304,
-            children: [{ title: 'A. Bindingslengte', page: 305 }],
+            page: 192,
+            children: [{ title: 'A. Bindingslengte', page: 192 }],
           },
-          { title: '52 – Evenwichtsconstanten', page: 306 },
+          { title: '52 – Evenwichtsconstanten', page: 194 },
           {
             title: '53 – Indicatoren',
-            page: 308,
-            children: [{ title: 'A. Zuur-/base-indicatoren', page: 309 }],
+            page: 196,
+            children: [{ title: 'A. Zuur-/base-indicatoren', page: 196 }],
           },
           {
             title: '54 – Reactiemechanismen',
-            page: 310,
+            page: 198,
             children: [
-              { title: 'A. SN2', page: 311 },
-              { title: 'B. SN1', page: 312 },
-              { title: 'C. Eliminatie SN1/SN2', page: 313 },
-              { title: 'D. Eliminatie', page: 314 },
-              { title: 'E. E1', page: 315 },
-              { title: 'F. E2', page: 316 },
+              { title: 'A. SN2', page: 198 },
+              { title: 'B. SN1', page: 199 },
+              { title: 'C. Eliminatie SN1/SN2', page: 200 },
+              { title: 'D. Eliminatiereacties', page: 201 },
+              { title: 'E. E1', page: 202 },
+              { title: 'F. E2', page: 203 },
             ],
           },
-          { title: '55 – Verbindingen en bindingen', page: 317 },
-          { title: '56 – Vormingstemperaturen', page: 318 },
+          { title: '55 – Verbindingen & bindingen', page: 206 },
+          { title: '56 – Vormingstemperaturen', page: 210 },
+          { title: '57 – Verbrandingswarmten', page: 213 },
+          { title: '58 – Bindingslengten', page: 216 },
+          { title: '59 – Ionisatie-energieën & affiniteiten', page: 218 },
+          { title: '60 – Enthalpie', page: 219 },
+          { title: '61 – Entropie', page: 221 },
+          { title: '62 – Hydrolyse', page: 223 },
+          { title: '63 – Gaswetten', page: 224 },
+          { title: '64 – Oplosbaarheid', page: 226 },
+          {
+            title: '65 – Eigenschappen chemicaliën',
+            page: 229,
+            children: [
+              { title: 'A. Vlamtemperaturen', page: 229 },
+              { title: 'B. Kleuren', page: 230 },
+            ],
+          },
+          {
+            title: '66 – Naamgeving',
+            page: 233,
+            children: [
+              { title: 'A. Triviale namen', page: 233 },
+              { title: 'B. Enkelvoudige stoffen', page: 234 },
+              { title: 'C. IUPAC-formules', page: 235 },
+              { title: 'D. Regels systematische naamgeving', page: 236 },
+              { title: 'E. Macromoleculaire materialen', page: 237 },
+            ],
+          },
+        ],
+      },
+      {
+        section: 'Biologie',
+        theme: 'biologie',
+        items: [
+          {
+            title: '67 – Structuurformules',
+            page: 242,
+            children: [
+              { title: 'A. Koolhydraten', page: 242 },
+              { title: 'B. Vetzuur/vetten', page: 244 },
+              { title: 'C. Aminozuren/eiwitten', page: 246 },
+              { title: 'D. Hormonen', page: 248 },
+              { title: 'E. Hormonale stoffen', page: 249 },
+              { title: 'F. Transmitters', page: 250 },
+              { title: 'G. Enzymen', page: 251 },
+            ],
+          },
+          {
+            title: '68 – Dissimilatie',
+            page: 254,
+            children: [
+              { title: 'A. Overzicht glucose', page: 254 },
+              { title: 'B. Glycolyse', page: 255 },
+              { title: 'C. Citroenzuurcyclus', page: 256 },
+              { title: 'D. Oxidatieve fosforylering', page: 257 },
+              { title: 'E. Dissimilatie macro’s', page: 258 },
+            ],
+          },
+          { title: '69 – Fotosynthese', page: 260 },
+          { title: '70 – Chromosomen mens', page: 263 },
+          { title: '71 – DNA/RNA', page: 266 },
+          { title: '72 – Absorptiespectra pigmenten', page: 275 },
+          { title: '73 – Plantenanatomie', page: 277 },
+          { title: '74 – Fysiologie plant', page: 279 },
+          { title: '75 – Osmotische waarden', page: 281 },
+          { title: '76 – Celdeling', page: 283 },
+          { title: '77 – Virussen', page: 288 },
+          { title: '78 – Het bloed', page: 291 },
+          { title: '79 – Cellen', page: 294 },
+          { title: '80 – Spijsvertering', page: 297 },
+          { title: '81 – Plantafgeleide weefsels', page: 300 },
+          { title: '82 – Transport mens & plant', page: 301 },
+          { title: '83 – Afweer', page: 304 },
+          { title: '84 – Bloed en bloedsomloop', page: 306 },
+          { title: '85 – Voortplanting', page: 309 },
+          { title: '86 – Ontwikkeling', page: 311 },
+          { title: '87 – Zenuwstelsel', page: 313 },
+          { title: '88 – Hormonenstelsel', page: 315 },
+          { title: '89 – Beweging & conditie', page: 316 },
+          { title: '90 – Skeletten', page: 316 },
+          { title: '91 – Plantkunde', page: 317 },
+          { title: '92 – Systematiek', page: 317 },
+          { title: '93 – Ecologie', page: 317 },
+          { title: '94 – Evolutie', page: 317 },
+        ],
+      },
+      {
+        section: 'Algemeen – Achterin',
+        theme: 'algemeen',
+        items: [
+          { title: '96 – Veiligheid & milieu', page: 317 },
+          { title: '97 – Nanotechnologie', page: 317 },
+          { title: '98 – Molaire massa’s veel gebruikte stoffen', page: 317 },
+          { title: '99 – Periodiek systeem der elementen', page: 317 },
         ],
       },
     ];
+
+    function getGridMetrics() {
+      const styles = getComputedStyle(pageGrid);
+      const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+      const gap = parseFloat(styles.columnGap || styles.gap || '0');
+      return { paddingX, paddingY, gap };
+    }
+
+    async function calculateFitWidthScale() {
+      if (!pdfDoc || !viewerArea) return scale;
+      const page = await pdfDoc.getPage(currentPage);
+      const viewport = page.getViewport({ scale: 1 });
+      const { paddingX, gap } = getGridMetrics();
+      const columns = isSpread ? 2 : 1;
+      const availableWidth = Math.max(120, viewerArea.clientWidth - paddingX - gap * (columns - 1));
+      const targetWidth = availableWidth / columns;
+      return clampZoom(targetWidth / viewport.width);
+    }
+
+    async function calculateFitHeightScale() {
+      if (!pdfDoc || !viewerArea) return scale;
+      const page = await pdfDoc.getPage(currentPage);
+      const viewport = page.getViewport({ scale: 1 });
+      const { paddingY } = getGridMetrics();
+      const availableHeight = Math.max(120, viewerArea.clientHeight - paddingY);
+      return clampZoom(availableHeight / viewport.height);
+    }
 
     function updatePageStatus() {
       if (!pdfDoc) {
@@ -889,6 +1056,13 @@
       zoomStatus.textContent = `Zoom: ${(scale * 100).toFixed(0)}%`;
     }
 
+    function updateToggleButtonVisual() {
+      if (!toggleViewBtn) return;
+      toggleViewBtn.classList.toggle('primary', isSpread);
+      const label = isSpread ? "2 pagina's" : '1 pagina';
+      toggleViewBtn.innerHTML = `${isSpread ? spreadIcon : singlePageIcon}<span>${label}</span>`;
+    }
+
     function updateButtons() {
       const hasDoc = Boolean(pdfDoc);
       prevBtn.disabled = !hasDoc || currentPage <= 1;
@@ -898,12 +1072,19 @@
       zoomOutBtn.disabled = !hasDoc || scale <= minScale;
       fitHeightBtn.disabled = !hasDoc;
       fitWidthBtn.disabled = !hasDoc;
-      resetZoomBtn.disabled = !hasDoc || scale === 1;
+      resetZoomBtn.disabled = !hasDoc || (!fitMode && scale === 1);
       toggleViewBtn.disabled = !hasDoc;
+      updateToggleButtonVisual();
     }
 
     async function renderPages() {
       if (!pdfDoc) return;
+
+      if (fitMode === 'width') {
+        scale = await calculateFitWidthScale();
+      } else if (fitMode === 'height') {
+        scale = await calculateFitHeightScale();
+      }
 
       pageGrid.innerHTML = '';
       const pagesToRender = isSpread
@@ -949,35 +1130,28 @@
 
     function changeZoom(delta) {
       if (!pdfDoc) return;
+      fitMode = null;
       scale = clampZoom(scale + delta);
       renderPages();
     }
 
     async function setZoomToFitWidth() {
       if (!pdfDoc || !viewerArea) return;
-      const page = await pdfDoc.getPage(currentPage);
-      const viewport = page.getViewport({ scale: 1 });
-      const columns = isSpread ? 2 : 1;
-      const gridPadding = 32;
-      const columnGap = 16;
-      const availableWidth = Math.max(120, viewerArea.clientWidth - gridPadding - columnGap * (columns - 1));
-      const targetWidth = availableWidth / columns;
-      scale = clampZoom(targetWidth / viewport.width);
+      fitMode = 'width';
+      scale = await calculateFitWidthScale();
       renderPages();
     }
 
     async function setZoomToFitHeight() {
       if (!pdfDoc || !viewerArea) return;
-      const page = await pdfDoc.getPage(currentPage);
-      const viewport = page.getViewport({ scale: 1 });
-      const gridPadding = 32;
-      const availableHeight = Math.max(120, viewerArea.clientHeight - gridPadding);
-      scale = clampZoom(availableHeight / viewport.height);
+      fitMode = 'height';
+      scale = await calculateFitHeightScale();
       renderPages();
     }
 
     function resetZoom() {
       if (!pdfDoc) return;
+      fitMode = null;
       scale = 1;
       renderPages();
     }
@@ -1008,6 +1182,7 @@
       pdfDoc = await loadingTask.promise;
       currentPage = 1;
       scale = 1;
+      fitMode = null;
       emptyState?.remove();
       renderPages();
     }
@@ -1068,6 +1243,9 @@
 
         const header = document.createElement('div');
         header.className = 'nav-group-header';
+        if (group.theme) {
+          header.classList.add(`theme-${group.theme}`);
+        }
         header.textContent = group.section;
         groupItem.appendChild(header);
 
@@ -1122,6 +1300,11 @@
 
     navSearch?.addEventListener('input', (event) => {
       renderNavigation(event.target.value);
+    });
+
+    window.addEventListener('resize', () => {
+      if (!pdfDoc || !fitMode) return;
+      renderPages();
     });
 
     renderNavigation();
