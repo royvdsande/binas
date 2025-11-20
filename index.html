@@ -23,6 +23,10 @@
       box-sizing: border-box;
     }
 
+    .no-select {
+      user-select: none;
+    }
+
     body {
       margin: 0;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -35,11 +39,8 @@
       display: grid;
       grid-template-columns: 320px 1fr;
       min-height: 100vh;
+      height: 100vh;
       background: #ffffff;
-    }
-
-    header {
-      padding: 0 0 16px 0;
     }
 
     .brand {
@@ -112,10 +113,22 @@
       border-right: 1px solid var(--border);
       background: #f8fafc;
       padding: 16px 14px;
-      overflow: auto;
-      display: grid;
-      grid-template-rows: auto auto 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 12px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar-top {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      z-index: 2;
+      padding-bottom: 4px;
     }
 
     .sidebar h2 {
@@ -123,6 +136,27 @@
       font-size: 15px;
       font-weight: 800;
       color: #0f172a;
+    }
+
+    .nav-header {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .nav-area {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .nav-scroll {
+      overflow: auto;
+      padding-right: 2px;
+      flex: 1;
+      min-height: 0;
     }
 
     .search-box {
@@ -216,30 +250,27 @@
     .toolbar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
+      gap: 6px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--border);
       background: #ffffff;
       position: sticky;
       top: 0;
       z-index: 2;
+      flex-wrap: wrap;
     }
 
     .toolbar-group {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: #f1f5f9;
-      padding: 6px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
     }
 
     button {
       border: 1px solid var(--border);
       background: #ffffff;
       color: #111827;
-      padding: 8px;
+      padding: 6px 8px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 700;
@@ -248,8 +279,8 @@
       justify-content: center;
       gap: 6px;
       transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-      min-width: 36px;
-      min-height: 36px;
+      min-width: 34px;
+      min-height: 34px;
     }
 
     button svg {
@@ -286,7 +317,7 @@
     .toolbar-status {
       margin-left: auto;
       display: inline-flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       font-weight: 700;
       color: var(--muted);
@@ -299,7 +330,7 @@
       gap: 6px;
       background: #eef2ff;
       color: #1d4ed8;
-      border-radius: 12px;
+      border-radius: 10px;
       padding: 6px 10px;
       border: 1px solid #dbe4ff;
       font-weight: 700;
@@ -309,6 +340,7 @@
       display: flex;
       flex-direction: column;
       min-height: 100vh;
+      height: 100vh;
       background: #ffffff;
     }
 
@@ -384,34 +416,38 @@
 <body>
   <div class="layout">
     <aside class="sidebar" aria-label="Inhoud van Binas">
-      <div class="brand" aria-label="PDF viewer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M6 3h9l3 3v15H6z" />
-          <path d="M15 3v3h3" />
-          <path d="M9 12h3M9 16h6" />
-          <path d="M9 8h2" />
-        </svg>
-        <div class="text">
-          <p class="brand-title">Binas PDF Studio</p>
-          <p class="brand-subtitle">Overzicht & snelle toegang</p>
-        </div>
-      </div>
-      <div class="file-picker">
-        <label for="file-input">Bestand</label>
-        <input id="file-input" type="file" accept="application/pdf" />
-      </div>
-      <div>
-        <h2>Onderwerpen</h2>
-        <div class="search-box">
+      <div class="sidebar-top">
+        <div class="brand no-select" aria-label="PDF viewer">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            <path d="M6 3h9l3 3v15H6z" />
+            <path d="M15 3v3h3" />
+            <path d="M9 12h3M9 16h6" />
+            <path d="M9 8h2" />
           </svg>
-          <input id="nav-search" type="search" placeholder="Zoek op tabel of naam" />
+          <div class="text">
+            <p class="brand-title">Binas PDF Studio</p>
+            <p class="brand-subtitle">Overzicht & snelle toegang</p>
+          </div>
+        </div>
+        <div class="file-picker">
+          <label class="no-select" for="file-input">Bestand</label>
+          <input id="file-input" type="file" accept="application/pdf" />
+        </div>
+        <div class="nav-header">
+          <h2 class="no-select">Onderwerpen</h2>
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+            <input id="nav-search" type="search" placeholder="Zoek op tabel of naam" />
+          </div>
         </div>
       </div>
-      <div>
-        <ul class="nav-list" id="nav-list" aria-live="polite"></ul>
+      <div class="nav-area">
+        <div class="nav-scroll">
+          <ul class="nav-list" id="nav-list" aria-live="polite"></ul>
+        </div>
       </div>
     </aside>
 
@@ -485,16 +521,9 @@
             </svg>
             <span>Weergave</span>
           </button>
-          <span class="badge" id="view-mode" aria-live="polite">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="8" height="16" rx="2" />
-              <rect x="13" y="4" width="8" height="16" rx="2" />
-            </svg>
-            <span class="view-label">1 pagina</span>
-          </span>
         </div>
 
-        <div class="toolbar-status">
+        <div class="toolbar-status no-select">
           <span id="page-status">Pagina – / –</span>
           <span aria-hidden="true">•</span>
           <span id="zoom-status" class="badge">Zoom: 100%</span>
@@ -539,7 +568,6 @@
     const toggleViewBtn = document.getElementById('toggle-view');
     const pageStatus = document.getElementById('page-status');
     const zoomStatus = document.getElementById('zoom-status');
-    const viewMode = document.getElementById('view-mode');
     const viewerArea = document.querySelector('.viewer-area');
 
     let pdfDoc = null;
@@ -861,13 +889,6 @@
       zoomStatus.textContent = `Zoom: ${(scale * 100).toFixed(0)}%`;
     }
 
-    function updateViewModeLabel() {
-      const label = viewMode.querySelector('.view-label');
-      if (label) {
-        label.textContent = isSpread ? '2 pagina\'s' : '1 pagina';
-      }
-    }
-
     function updateButtons() {
       const hasDoc = Boolean(pdfDoc);
       prevBtn.disabled = !hasDoc || currentPage <= 1;
@@ -878,7 +899,7 @@
       fitHeightBtn.disabled = !hasDoc;
       fitWidthBtn.disabled = !hasDoc;
       resetZoomBtn.disabled = !hasDoc || scale === 1;
-      toggleViewBtn.disabled = !hasDoc && !isSpread;
+      toggleViewBtn.disabled = !hasDoc;
     }
 
     async function renderPages() {
@@ -920,7 +941,6 @@
       updatePageStatus();
       updateZoomStatus();
       updateButtons();
-      updateViewModeLabel();
     }
 
     function clampZoom(newScale) {
@@ -938,8 +958,10 @@
       const page = await pdfDoc.getPage(currentPage);
       const viewport = page.getViewport({ scale: 1 });
       const columns = isSpread ? 2 : 1;
-      const availableWidth = viewerArea.clientWidth - 32;
-      const targetWidth = Math.max(100, availableWidth / columns - 16);
+      const gridPadding = 32;
+      const columnGap = 16;
+      const availableWidth = Math.max(120, viewerArea.clientWidth - gridPadding - columnGap * (columns - 1));
+      const targetWidth = availableWidth / columns;
       scale = clampZoom(targetWidth / viewport.width);
       renderPages();
     }
@@ -948,7 +970,8 @@
       if (!pdfDoc || !viewerArea) return;
       const page = await pdfDoc.getPage(currentPage);
       const viewport = page.getViewport({ scale: 1 });
-      const availableHeight = viewerArea.clientHeight - 32;
+      const gridPadding = 32;
+      const availableHeight = Math.max(120, viewerArea.clientHeight - gridPadding);
       scale = clampZoom(availableHeight / viewport.height);
       renderPages();
     }
@@ -996,8 +1019,6 @@
       }
       if (pdfDoc) {
         renderPages();
-      } else {
-        updateViewModeLabel();
       }
     }
 
@@ -1086,6 +1107,19 @@
     resetZoomBtn.addEventListener('click', resetZoom);
     toggleViewBtn.addEventListener('click', toggleView);
 
+    viewerArea?.addEventListener(
+      'wheel',
+      (event) => {
+        if (!pdfDoc) return;
+        if (event.ctrlKey || event.metaKey) {
+          event.preventDefault();
+          const delta = event.deltaY > 0 ? -scaleStep : scaleStep;
+          changeZoom(delta);
+        }
+      },
+      { passive: false }
+    );
+
     navSearch?.addEventListener('input', (event) => {
       renderNavigation(event.target.value);
     });
@@ -1095,7 +1129,6 @@
     updatePageStatus();
     updateZoomStatus();
     updateButtons();
-    updateViewModeLabel();
   </script>
 </body>
 </html>
