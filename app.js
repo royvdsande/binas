@@ -5,15 +5,6 @@ const MAX_SCALE = 3.5;
 const SCALE_STEP = 0.15;
 
 // Geïmporteerde inhoud van BiNaS (overzicht + fundering), paginanummers volgen later.
-const CATEGORY_CLASSES = {
-  'Algemeen': 'category--algemeen',
-  'Algemeen – Achterin': 'category--algemeen-achterin',
-  'Natuurkunde': 'category--natuurkunde',
-  'Natuurkunde vervolg': 'category--natuurkunde',
-  'Wiskunde': 'category--wiskunde',
-  'Scheikunde': 'category--scheikunde',
-  'Biologie': 'category--biologie',
-};
 const BINAS_INDEX = [
   { category: 'Algemeen', title: 'Grieks alfabet', pageStart: null, pageEnd: null },
   { category: 'Algemeen', title: 'Vermenigvuldigingsfactoren', pageStart: null, pageEnd: null },
@@ -582,7 +573,6 @@ function resetViewer() {
 
 async function loadPdfFromFile(file) {
   if (!file) return;
-  pdfUploadInput.value = '';
   resetViewer();
   setStatus('PDF laden…');
   clearError();
