@@ -1,11 +1,34 @@
+// Basisconfiguratie voor de BiNaS viewer.
+const PDF_URL = 'https://drive.google.com/uc?export=download&id=1PvuI4LDnkbfIyujRxe74Urau2quj1hk-';
 // Basisconfiguratie voor de BiNaS viewer zonder externe download.
 const DEFAULT_SPREAD = true;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3.5;
 const SCALE_STEP = 0.15;
 
+// Voorbeeldindex, makkelijk uitbreidbaar zodra de echte pagina's bekend zijn.
 // Geïmporteerde inhoud van BiNaS (overzicht + fundering), paginanummers volgen later.
+const CATEGORY_CLASSES = {
+  'Algemeen': 'category--algemeen',
+  'Algemeen – Achterin': 'category--algemeen-achterin',
+  'Natuurkunde': 'category--natuurkunde',
+  'Natuurkunde vervolg': 'category--natuurkunde',
+  'Wiskunde': 'category--wiskunde',
+  'Scheikunde': 'category--scheikunde',
+  'Biologie': 'category--biologie',
+};
 const BINAS_INDEX = [
+  { category: 'Algemeen', code: '1', title: 'Grieks alfabet', pageStart: 7, pageEnd: 7 },
+  { category: 'Algemeen', code: '3', title: 'Grootheden en eenheden in het SI', pageStart: 9, pageEnd: 11 },
+  { category: 'Algemeen', code: '7', title: 'Omrekenfactoren van eenheden', pageStart: 15, pageEnd: 16 },
+  { category: 'Natuurkunde', code: '10', title: 'Waarden van enkele constanten', pageStart: 25, pageEnd: 26 },
+  { category: 'Natuurkunde', code: '14A', title: 'Kook- en smeltpunten', pageStart: 33, pageEnd: 34 },
+  { category: 'Natuurkunde', code: '15', title: 'Dichtheden van vaste stoffen', pageStart: 35, pageEnd: 35 },
+  { category: 'Wiskunde', code: '24', title: 'Standaardafwijking', pageStart: 47, pageEnd: 47 },
+  { category: 'Scheikunde', code: '40', title: 'Naamgeving binair', pageStart: 65, pageEnd: 66 },
+  { category: 'Biologie', code: '78', title: 'Samenstelling bloedplasma en serum', pageStart: 96, pageEnd: 97 },
+  { category: 'Biologie', code: '87', title: 'Hormoonsystemen', pageStart: 110, pageEnd: 112 },
+  { category: 'Biologie', code: '93', title: 'Afweer en immuniteit', pageStart: 122, pageEnd: 125 },
   { category: 'Algemeen', title: 'Grieks alfabet', pageStart: null, pageEnd: null },
   { category: 'Algemeen', title: 'Vermenigvuldigingsfactoren', pageStart: null, pageEnd: null },
   { category: 'Algemeen', title: 'Basisgrootheden en grondeenheden in het SI', pageStart: null, pageEnd: null },
@@ -257,6 +280,7 @@ let isDragging = false;
 let dragStart = { x: 0, y: 0 };
 let scrollStart = { left: 0, top: 0 };
 
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs';
 
 // Utility: toon status of fouten
@@ -289,6 +313,8 @@ function renderIndex(filterValue = '') {
     if (!query) return true;
     return (
       item.title.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query) ||
+      item.code.toLowerCase().includes(query)
       item.category.toLowerCase().includes(query)
     );
   });
@@ -316,14 +342,20 @@ function renderIndex(filterValue = '') {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'topic-item';
+      button.setAttribute('data-page', item.pageStart);
       button.setAttribute('data-page', item.pageStart ?? '');
       const pagesLabel = item.pageStart ? `Pagina's ${item.pageStart}${item.pageEnd ? `–${item.pageEnd}` : ''}` : 'Pagina volgt';
       button.innerHTML = `
         <div class="topic-meta">
           <p class="topic-title">${item.title}</p>
+          <span class="topic-code">Tabel ${item.code}</span>
         </div>
+        <p class="topic-pages">Pagina's ${item.pageStart}–${item.pageEnd}</p>
         <p class="topic-pages">${pagesLabel}</p>
       `;
+      button.addEventListener('click', () => {
+        goToPage(item.pageStart);
+      });
 
       if (item.pageStart) {
         button.addEventListener('click', () => goToPage(item.pageStart));
@@ -363,6 +395,7 @@ function getSpreadPages(page) {
 }
 
 async function renderPages() {
+  if (!pdfDoc) return;
   if (!pdfDoc) {
     setStatus('Upload een BiNaS-PDF om te starten.');
     canvasWrapper.innerHTML = '';
@@ -426,6 +459,7 @@ function goToPage(target) {
 
 function toggleSpread() {
   spreadMode = !spreadMode;
+  toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
   toggleViewBtn.classList.toggle('is-active', spreadMode);
   renderPages();
 }
@@ -506,34 +540,7 @@ pageInput.addEventListener('keydown', (e) => {
 
 // Panning (muis slepen)
 canvasWrapper.addEventListener('mousedown', (e) => {
-  isDragging = true;
-  dragStart = { x: e.clientX, y: e.clientY };
-  scrollStart = { left: canvasWrapper.scrollLeft, top: canvasWrapper.scrollTop };
-  canvasWrapper.classList.add('dragging');
-});
-
-window.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  const dx = e.clientX - dragStart.x;
-  const dy = e.clientY - dragStart.y;
-  canvasWrapper.scrollLeft = scrollStart.left - dx;
-  canvasWrapper.scrollTop = scrollStart.top - dy;
-});
-
-window.addEventListener('mouseup', () => {
-  isDragging = false;
-  canvasWrapper.classList.remove('dragging');
-});
-
-canvasWrapper.addEventListener('wheel', (e) => {
-  if (e.ctrlKey) {
-    e.preventDefault();
-    zoom(e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP);
-  }
-});
-
-// Keyboard shortcuts
-window.addEventListener('keydown', (e) => {
+@@ -296,49 +546,70 @@ window.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea')) return;
   switch (e.key) {
     case 'ArrowRight':
@@ -559,6 +566,8 @@ window.addEventListener('resize', () => {
   if (lastFitMode) renderPages();
 });
 
+// PDF laden
+async function loadPdf() {
 function resetViewer() {
   currentPage = 1;
   totalPages = 0;
@@ -573,20 +582,24 @@ function resetViewer() {
 
 async function loadPdfFromFile(file) {
   if (!file) return;
+  pdfUploadInput.value = '';
   resetViewer();
   setStatus('PDF laden…');
   clearError();
   try {
+    const loadingTask = pdfjsLib.getDocument({ url: PDF_URL, withCredentials: false });
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     pdfDoc = await loadingTask.promise;
     totalPages = pdfDoc.numPages;
     pageInput.max = totalPages;
+    toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
     toggleViewBtn.classList.toggle('is-active', spreadMode);
     enableControls();
     await renderPages();
   } catch (err) {
     console.error(err);
+    showError('Kon de PDF niet laden. Controleer de internetverbinding of CORS-instellingen.');
     showError('Kon de PDF niet laden. Controleer of het bestand geldig is.');
     setStatus('Laden mislukt');
   }
@@ -599,7 +612,685 @@ pdfUploadInput.addEventListener('change', (event) => {
 
 function init() {
   renderIndex();
+  loadPdf();
   resetViewer();
 }
 
 init();
+index.html
++84
+-16
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BiNaS Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- pdf.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js" integrity="sha512-uWH+Wh0xblZqTtNpC1ErmLROE2/p4O9fI2G3Vy7FiJm+f9Y9fKQhKzyUIqogQBEw5rLDQO5/nbY5z3K5pTAxGw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <header class="sidebar__header">
+        <h1>BiNaS Viewer</h1>
+        <p class="subtitle">Zoek snel naar tabellen en onderwerpen</p>
+        <div class="brand">
+          <div class="brand__icon" aria-hidden="true">𝛽</div>
+          <div>
+            <h1>BiNaS Viewer</h1>
+            <p class="subtitle">Zoek snel naar tabellen en onderwerpen</p>
+          </div>
+        </div>
+        <div class="upload">
+          <input id="pdf-upload" type="file" accept="application/pdf" hidden />
+          <label class="upload__button" for="pdf-upload">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M12 3c.3 0 .5.1.7.3l5 5a1 1 0 0 1-1.4 1.4L13 7.4V16a1 1 0 1 1-2 0V7.4L7.7 9.7A1 1 0 1 1 6.3 8.3l5-5c.2-.2.4-.3.7-.3Z" />
+              <path d="M5 14a1 1 0 0 1 2 0 3 3 0 0 0 3 3h4a3 3 0 0 0 3-3 1 1 0 1 1 2 0 5 5 0 0 1-5 5H10a5 5 0 0 1-5-5Z" />
+            </svg>
+            <span>Upload PDF</span>
+          </label>
+          <p class="upload__hint">Selecteer je eigen BiNaS-PDF.</p>
+        </div>
+        <label class="search-label" for="search-input">Zoeken in BiNaS</label>
+        <input id="search-input" type="search" placeholder="Zoek op onderwerp of tabelnummer" autocomplete="off" />
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+            <path d="m20.7 19.3-4-4a7 7 0 1 0-1.4 1.4l4 4a1 1 0 0 0 1.4-1.4ZM6 11a5 5 0 1 1 10 0 5 5 0 0 1-10 0Z" />
+          </svg>
+          <input id="search-input" type="search" placeholder="Zoek op onderwerp of tabelnummer" autocomplete="off" />
+        </div>
+      </header>
+      <div id="topic-list" class="topic-list" aria-live="polite"></div>
+    </aside>
+
+    <main class="viewer">
+      <div class="toolbar">
+        <div class="toolbar__group">
+          <button id="prev-page" type="button">Vorige</button>
+          <button id="next-page" type="button">Volgende</button>
+          <button id="first-page" type="button">Eerste</button>
+          <button id="last-page" type="button">Laatste</button>
+          <button id="first-page" type="button" class="icon-button" aria-label="Eerste pagina" title="Eerste pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M18 5a1 1 0 1 0-2 0v14a1 1 0 1 0 2 0V5Zm-4.7 7.7a1 1 0 0 0 0-1.4l-5-5A1 1 0 0 0 7 7v10a1 1 0 0 0 1.7.7l5-5Z" />
+            </svg>
+          </button>
+          <button id="prev-page" type="button" class="icon-button" aria-label="Vorige pagina" title="Vorige pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="m14.7 5.3-6 6a1 1 0 0 0 0 1.4l6 6a1 1 0 0 0 1.4-1.4L10.41 12l5.7-5.7A1 1 0 0 0 14.7 5.3Z" />
+            </svg>
+          </button>
+          <button id="next-page" type="button" class="icon-button" aria-label="Volgende pagina" title="Volgende pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="m9.3 5.3 6 6a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4-1.4l5.29-5.3-5.3-5.3A1 1 0 0 1 9.3 5.3Z" />
+            </svg>
+          </button>
+          <button id="last-page" type="button" class="icon-button" aria-label="Laatste pagina" title="Laatste pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M6 19a1 1 0 1 0 2 0V5a1 1 0 1 0-2 0v14Zm4.7-7.7a1 1 0 0 1 0-1.4l5-5A1 1 0 0 1 17 7v10a1 1 0 0 1-1.7.7l-5-5Z" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="toolbar__group">
+          <button id="toggle-view" type="button">Spread</button>
+          <button id="toggle-view" type="button" class="icon-button" aria-label="Wissel spread" title="Spread / enkele pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M10 5a1 1 0 0 1 1 1v12a1 1 0 0 1-1.5.86l-6-3.5A1 1 0 0 1 2 14.5v-5a1 1 0 0 1 .5-.86l6-3.5A1 1 0 0 1 10 5Zm4 0a1 1 0 0 0-1 1v12a1 1 0 0 0 1.5.86l6-3.5a1 1 0 0 0 .5-.86v-5a1 1 0 0 0-.5-.86l-6-3.5A1 1 0 0 0 14 5Z" />
+            </svg>
+          </button>
+          <span class="divider" aria-hidden="true"></span>
+          <button id="zoom-out" type="button">Zoom uit</button>
+          <button id="zoom-in" type="button">Zoom in</button>
+          <button id="fit-width" type="button">Passend breedte</button>
+          <button id="fit-page" type="button">Hele pagina</button>
+          <button id="zoom-out" type="button" class="icon-button" aria-label="Zoom uit" title="Zoom uit">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M4 12a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm8-6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-3 5a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H9Z" />
+            </svg>
+          </button>
+          <button id="zoom-in" type="button" class="icon-button" aria-label="Zoom in" title="Zoom in">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M4 12a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm8-6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-1 3a1 1 0 0 1 2 0v2h2a1 1 0 1 1 0 2h-2v2a1 1 0 1 1-2 0v-2H9a1 1 0 0 1 0-2h2V9Z" />
+            </svg>
+          </button>
+          <button id="fit-width" type="button" class="icon-button" aria-label="Passend op breedte" title="Passend op breedte">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M14 6a1 1 0 0 0 0 2h2.59L6.3 18.3a1 1 0 0 0 1.4 1.4L18 9.41V12a1 1 0 1 0 2 0V7a1 1 0 0 0-1-1h-5Z" />
+              <path d="M5 5a1 1 0 0 0-1 1v5a1 1 0 1 0 2 0V8.41l9.3 9.3a1 1 0 0 0 1.4-1.42L7.41 7H10a1 1 0 1 0 0-2H5Z" />
+            </svg>
+          </button>
+          <button id="fit-page" type="button" class="icon-button" aria-label="Hele pagina" title="Hele pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M11 4a1 1 0 0 1 2 0v3a2 2 0 0 0 2 2h3a1 1 0 1 1 0 2h-3a4 4 0 0 1-4-4V4Zm-6 7a1 1 0 0 1 1 1v3a2 2 0 0 0 2 2h3a1 1 0 1 1 0 2H8a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1Z" />
+              <path d="M4 11a1 1 0 0 1 0-2h3a2 2 0 0 0 2-2V4a1 1 0 1 1 2 0v3a4 4 0 0 1-4 4H4Zm10-7a1 1 0 0 1 1 1v3a2 2 0 0 0 2 2h3a1 1 0 1 1 0 2h-3a4 4 0 0 1-4-4V5a1 1 0 0 1 1-1Z" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="toolbar__group">
+          <label for="page-input">Ga naar pagina</label>
+          <input id="page-input" type="number" min="1" step="1" />
+          <button id="go-to-page" type="button">Ga</button>
+          <label for="page-input" class="sr-only">Ga naar pagina</label>
+          <div class="pill-input">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm-9 7a9 9 0 1 1 18 0 9 9 0 0 1-18 0Zm9-6a1 1 0 0 1 1 1v4.6l2.1 1.2a1 1 0 1 1-1 1.8l-2.6-1.5A1 1 0 0 1 11 13V7a1 1 0 0 1 1-1Z" />
+            </svg>
+            <input id="page-input" type="number" min="1" step="1" placeholder="Pg." />
+          </div>
+          <button id="go-to-page" type="button" class="icon-button" aria-label="Ga naar pagina" title="Ga naar pagina">
+            <svg viewBox="0 0 24 24" role="presentation" aria-hidden="true" focusable="false">
+              <path d="M5 12a1 1 0 0 1 1-1h10.59l-3.3-3.3a1 1 0 0 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 0 1-1.42-1.4l3.3-3.3H6a1 1 0 0 1-1-1Z" />
+            </svg>
+          </button>
+          <span id="page-info" class="page-info">Pagina - / -</span>
+        </div>
+      </div>
+
+      <div id="status" class="status" role="status">Bezig met laden…</div>
+      <div id="status" class="status" role="status">Upload een BiNaS-PDF om te starten.</div>
+      <div id="viewer-container" class="viewer-container">
+        <div id="canvas-wrapper" class="canvas-wrapper"></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="error-banner" class="error-banner" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
+styles.css
++263
+-54
+
+:root {
+  --sidebar-width: 320px;
+  --border-color: #e0e0e0;
+  --bg-light: #f7f7f9;
+  --sidebar-width: 360px;
+  --border-color: #e3e7ef;
+  --bg-light: #f5f7fb;
+  --bg-card: #ffffff;
+  --accent: #2a7f62;
+  --text: #1f1f1f;
+  --muted: #5f6368;
+  --accent-strong: #25674f;
+  --text: #161c2d;
+  --muted: #6b7280;
+  --danger: #b3261e;
+  --shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  --cat-algemeen: #7c3aed;
+  --cat-algemeen-achterin: #8b5e3c;
+  --cat-natuurkunde: #2563eb;
+  --cat-wiskunde: #8b5e3c;
+  --cat-scheikunde: #dc2626;
+  --cat-biologie: #16a34a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #fff;
+  background: linear-gradient(135deg, #eef1f7 0%, #f8fafc 40%, #eef6f2 100%);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+}
+
+h1, h2, h3, h4 {
+  color: var(--text);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  width: 100%;
+  height: 100vh;
+}
+
+.sidebar {
+  background: var(--bg-light);
+  border-right: 1px solid var(--border-color);
+  padding: 16px;
+  padding: 18px 18px 24px;
+  overflow-y: auto;
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.02);
+}
+
+.sidebar__header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-light);
+  padding-bottom: 12px;
+  padding-bottom: 16px;
+  z-index: 1;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.brand__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 30%, #6fe3ab 0%, #2a7f62 70%);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #fff;
+  font-size: 18px;
+  box-shadow: var(--shadow);
+}
+
+.sidebar h1 {
+  margin: 0 0 4px;
+  margin: 0;
+  font-size: 20px;
+}
+
+.subtitle {
+  margin: 0 0 12px;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.upload {
+  background: var(--bg-card);
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 14px 0;
+  box-shadow: var(--shadow);
+}
+
+.upload__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2a7f62, #5abf9f);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+  box-shadow: 0 12px 30px rgba(42, 127, 98, 0.35);
+}
+
+.upload__button svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.upload__button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 38px rgba(42, 127, 98, 0.35);
+}
+
+.upload__hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.search-label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+  margin: 0 0 6px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+}
+
+.search-bar svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--muted);
+}
+
+.sidebar input[type="search"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  outline: none;
+  background: transparent;
+}
+
+.topic-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-group {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.category--algemeen {
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+.category--algemeen-achterin {
+  border-color: rgba(139, 94, 60, 0.25);
+}
+
+.category--natuurkunde {
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.category--wiskunde {
+  border-color: rgba(139, 94, 60, 0.35);
+}
+
+.category--scheikunde {
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.category--biologie {
+  border-color: rgba(22, 163, 74, 0.25);
+}
+
+.category-header {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg-light);
+  padding: 12px 14px;
+  background: linear-gradient(120deg, #f5f7fb 0%, #eef6f2 100%);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 15px;
+  font-weight: 600;
+  font-weight: 700;
+}
+
+.category--algemeen__title {
+  color: var(--cat-algemeen);
+}
+
+.category--algemeen-achterin__title {
+  color: var(--cat-algemeen-achterin);
+}
+
+.category--wiskunde__title {
+  color: var(--cat-wiskunde);
+}
+
+.category--natuurkunde__title {
+  color: var(--cat-natuurkunde);
+}
+
+.category--scheikunde__title {
+  color: var(--cat-scheikunde);
+}
+
+.category--biologie__title {
+  color: var(--cat-biologie);
+}
+
+.topic-item {
+  padding: 10px 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  transition: background 0.2s ease, transform 0.1s ease;
+  text-align: left;
+  background: #fff;
+}
+
+.topic-item:last-child {
+  border-bottom: none;
+}
+
+.topic-item:hover,
+.topic-item:focus {
+  background: #eef7f3;
+}
+
+.topic-item--inactive {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: #fafbfc;
+}
+
+.topic-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.topic-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.topic-code {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.topic-pages {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  gap: 18px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+  flex-wrap: wrap;
+  background: #fff;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: var(--shadow);
+}
+
+.toolbar__group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toolbar button {
+  padding: 8px 12px;
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  background: #fff;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #fff, #f5f7fb);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease, transform 0.1s ease;
+  display: grid;
+  place-items: center;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, border-color 0.2s ease;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar button:hover {
+  background: #eef7f3;
+.icon-button svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--text);
+}
+
+.icon-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.08);
+  border-color: #d0d7e4;
+}
+
+.toolbar button:active {
+  transform: translateY(1px);
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 12px 26px rgba(42, 127, 98, 0.18);
+}
+
+.pill-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 6px 10px;
+  box-shadow: var(--shadow);
+}
+
+.pill-input svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--muted);
+}
+
+.toolbar input[type="number"] {
+  width: 70px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 6px;
+  border: none;
+  font-size: 14px;
+  background: transparent;
+  outline: none;
+}
+
+.divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border-color);
+  display: inline-block;
+}
+
+.viewer-container {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #f2f3f5;
+  background: linear-gradient(135deg, #f3f6fb 0%, #eef6f2 100%);
+}
+
+.canvas-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+  padding: 20px;
+  padding: 24px;
+}
+
+canvas {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  background: #fff;
+  border-radius: 10px;
+}
+
+.status {
+  padding: 8px 12px;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 14px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.page-info {
+  font-size: 14px;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+}
+
+.error-banner {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  padding: 12px 14px;
+  background: #feecec;
+  color: var(--danger);
+  border: 1px solid #f5b5b5;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 900px) {
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --sidebar-width: 280px;
+    --sidebar-width: 320px;
+  }
+
+  .toolbar {
+    gap: 8px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 720px) {
+@media (max-width: 900px) {
+  :root {
+    --sidebar-width: 100%;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    height: 40vh;
+    height: auto;
+    max-height: 50vh;
+  }
+
+  .viewer {
+    height: 60vh;
+    height: 50vh;
+  }
+
+  .canvas-wrapper {
+    justify-content: flex-start;
+  }
+}
