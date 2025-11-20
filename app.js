@@ -281,7 +281,6 @@ let dragStart = { x: 0, y: 0 };
 let scrollStart = { left: 0, top: 0 };
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs';
 
 // Utility: toon status of fouten
 function setStatus(message) {
@@ -314,8 +313,7 @@ function renderIndex(filterValue = '') {
     return (
       item.title.toLowerCase().includes(query) ||
       item.category.toLowerCase().includes(query) ||
-      item.code.toLowerCase().includes(query)
-      item.category.toLowerCase().includes(query)
+      (item.code && item.code.toLowerCase().includes(query))
     );
   });
 
@@ -342,19 +340,16 @@ function renderIndex(filterValue = '') {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'topic-item';
-      button.setAttribute('data-page', item.pageStart);
       button.setAttribute('data-page', item.pageStart ?? '');
-      const pagesLabel = item.pageStart ? `Pagina's ${item.pageStart}${item.pageEnd ? `–${item.pageEnd}` : ''}` : 'Pagina volgt';
+      const pagesLabel = item.pageStart
+        ? `Pagina's ${item.pageStart}${item.pageEnd ? `–${item.pageEnd}` : ''}`
+        : 'Pagina volgt';
       button.innerHTML = `
         <div class="topic-meta">
           <p class="topic-title">${item.title}</p>
         </div>
-        <p class="topic-pages">Pagina's ${item.pageStart}–${item.pageEnd}</p>
         <p class="topic-pages">${pagesLabel}</p>
       `;
-      button.addEventListener('click', () => {
-        goToPage(item.pageStart);
-      });
 
       if (item.pageStart) {
         button.addEventListener('click', () => goToPage(item.pageStart));
@@ -393,13 +388,12 @@ function getSpreadPages(page) {
   return pages;
 }
 
-async function renderPages() {
-  if (!pdfDoc) return;
-  if (!pdfDoc) {
-    setStatus('Upload een BiNaS-PDF om te starten.');
-    canvasWrapper.innerHTML = '';
-    return;
-  }
+  async function renderPages() {
+    if (!pdfDoc) {
+      setStatus('Upload een BiNaS-PDF om te starten.');
+      canvasWrapper.innerHTML = '';
+      return;
+    }
   clearError();
   setStatus('Bezig met renderen…');
   canvasWrapper.innerHTML = '';
@@ -539,7 +533,28 @@ pageInput.addEventListener('keydown', (e) => {
 
 // Panning (muis slepen)
 canvasWrapper.addEventListener('mousedown', (e) => {
-@@ -296,49 +546,70 @@ window.addEventListener('keydown', (e) => {
+  if (e.button !== 0) return;
+  isDragging = true;
+  canvasWrapper.classList.add('is-dragging');
+  dragStart = { x: e.clientX, y: e.clientY };
+  scrollStart = { left: viewerContainer.scrollLeft, top: viewerContainer.scrollTop };
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  viewerContainer.scrollLeft = scrollStart.left - dx;
+  viewerContainer.scrollTop = scrollStart.top - dy;
+});
+
+window.addEventListener('mouseup', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  canvasWrapper.classList.remove('is-dragging');
+});
+
+window.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea')) return;
   switch (e.key) {
     case 'ArrowRight':
@@ -565,8 +580,6 @@ window.addEventListener('resize', () => {
   if (lastFitMode) renderPages();
 });
 
-// PDF laden
-async function loadPdf() {
 function resetViewer() {
   currentPage = 1;
   totalPages = 0;
@@ -575,7 +588,10 @@ function resetViewer() {
   currentScale = 1;
   pageInput.value = '';
   pageInfo.textContent = 'Pagina - / -';
+  toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
   toggleViewBtn.classList.toggle('is-active', spreadMode);
+  canvasWrapper.innerHTML = '';
+  setStatus('Upload een BiNaS-PDF om te starten.');
   disableControls();
 }
 
@@ -586,7 +602,6 @@ async function loadPdfFromFile(file) {
   setStatus('PDF laden…');
   clearError();
   try {
-    const loadingTask = pdfjsLib.getDocument({ url: PDF_URL, withCredentials: false });
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     pdfDoc = await loadingTask.promise;
@@ -598,7 +613,6 @@ async function loadPdfFromFile(file) {
     await renderPages();
   } catch (err) {
     console.error(err);
-    showError('Kon de PDF niet laden. Controleer de internetverbinding of CORS-instellingen.');
     showError('Kon de PDF niet laden. Controleer of het bestand geldig is.');
     setStatus('Laden mislukt');
   }
@@ -610,9 +624,8 @@ pdfUploadInput.addEventListener('change', (event) => {
 });
 
 function init() {
-  renderIndex();
-  loadPdf();
   resetViewer();
+  renderIndex();
 }
 
 init();
