@@ -1,1 +1,65 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BiNaS Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- pdf.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js" integrity="sha512-uWH+Wh0xblZqTtNpC1ErmLROE2/p4O9fI2G3Vy7FiJm+f9Y9fKQhKzyUIqogQBEw5rLDQO5/nbY5z3K5pTAxGw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <header class="sidebar__header">
+        <div class="brand">
+          <div class="brand__accent"></div>
+          <div>
+            <p class="eyebrow">Tools voor scholieren</p>
+            <h1>BiNaS Viewer</h1>
+            <p class="subtitle">Zoek direct naar tabellen en onderwerpen</p>
+          </div>
+        </div>
+        <label class="search-label" for="search-input">Zoeken in BiNaS</label>
+        <input id="search-input" type="search" placeholder="Zoek op onderwerp of tabelnummer" autocomplete="off" />
+      </header>
+      <div id="topic-list" class="topic-list" aria-live="polite"></div>
+    </aside>
 
+    <main class="viewer">
+      <div class="toolbar">
+        <div class="toolbar__group">
+          <button id="prev-page" type="button">Vorige</button>
+          <button id="next-page" type="button">Volgende</button>
+          <button id="first-page" type="button">Eerste</button>
+          <button id="last-page" type="button">Laatste</button>
+        </div>
+
+        <div class="toolbar__group">
+          <button id="toggle-view" type="button">Spread</button>
+          <span class="divider" aria-hidden="true"></span>
+          <button id="zoom-out" type="button">Zoom uit</button>
+          <button id="zoom-in" type="button">Zoom in</button>
+          <button id="fit-width" type="button">Passend breedte</button>
+          <button id="fit-page" type="button">Hele pagina</button>
+        </div>
+
+        <div class="toolbar__group toolbar__group--input">
+          <label for="page-input">Ga naar pagina</label>
+          <input id="page-input" type="number" min="1" step="1" />
+          <button id="go-to-page" type="button">Ga</button>
+          <span id="page-info" class="page-info">Pagina - / -</span>
+        </div>
+      </div>
+
+      <div id="status" class="status" role="status">Bezig met laden…</div>
+      <div id="viewer-container" class="viewer-container">
+        <div id="canvas-wrapper" class="canvas-wrapper"></div>
+      </div>
+    </main>
+  </div>
+
+  <div id="error-banner" class="error-banner" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
