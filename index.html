@@ -1,1 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom PDF Viewer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --accent: #0d6efd;
+      --bg: #f8f9fa;
+      --panel: #ffffff;
+      --border: #dcdfe3;
+      --text: #1f2937;
+    }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .viewer-shell {
+      width: min(1100px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #ffffff, #f6f7fb);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0b1224;
+    }
+
+    .file-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: #f8f9fb;
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .file-picker label {
+      font-weight: 600;
+      color: #0f172a;
+      font-size: 14px;
+    }
+
+    .file-picker input[type="file"] {
+      width: 100%;
+      font-size: 14px;
+    }
+
+    main {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 600px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: #fbfcfe;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: #111827;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: #eef3ff;
+      border-color: #c9d7ff;
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .toolbar .spacer {
+      flex: 1;
+    }
+
+    .page-status, .zoom-status {
+      font-weight: 700;
+      font-size: 14px;
+      padding: 0 8px;
+      color: #374151;
+      min-width: 120px;
+    }
+
+    .viewer-area {
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    canvas {
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      border: 1px solid #d5d8dd;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .hint {
+      font-size: 14px;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body>
+  <div class="viewer-shell">
+    <header>
+      <h1>Custom PDF Viewer</h1>
+      <div class="file-picker">
+        <label for="file-input">Kies een lokaal PDF-bestand:</label>
+        <input id="file-input" type="file" accept="application/pdf" />
+      </div>
+    </header>
+
+    <main>
+      <div class="toolbar">
+        <button id="prev-page" aria-label="Vorige pagina">◀ Vorige</button>
+        <button id="next-page" aria-label="Volgende pagina">Volgende ▶</button>
+        <span class="page-status" id="page-status">Pagina – / –</span>
+        <div class="spacer"></div>
+        <button id="zoom-out" aria-label="Zoom uit">−</button>
+        <button id="zoom-in" aria-label="Zoom in">+</button>
+        <button id="reset-zoom" aria-label="Reset zoom">Reset</button>
+        <span class="zoom-status" id="zoom-status">Zoom: 100%</span>
+      </div>
+      <div class="viewer-area">
+        <canvas id="pdf-canvas" role="img" aria-label="PDF canvas"></canvas>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const fileInput = document.getElementById('file-input');
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas.getContext('2d');
+
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    const zoomInBtn = document.getElementById('zoom-in');
+    const zoomOutBtn = document.getElementById('zoom-out');
+    const resetZoomBtn = document.getElementById('reset-zoom');
+    const pageStatus = document.getElementById('page-status');
+    const zoomStatus = document.getElementById('zoom-status');
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let scale = 1;
+    const minScale = 0.5;
+    const maxScale = 3;
+    const scaleStep = 0.15;
+
+    function updatePageStatus() {
+      const total = pdfDoc ? pdfDoc.numPages : '–';
+      const current = pdfDoc ? currentPage : '–';
+      pageStatus.textContent = `Pagina ${current} / ${total}`;
+    }
+
+    function updateZoomStatus() {
+      zoomStatus.textContent = `Zoom: ${(scale * 100).toFixed(0)}%`;
+    }
+
+    function updateButtons() {
+      const hasDoc = Boolean(pdfDoc);
+      prevBtn.disabled = !hasDoc || currentPage <= 1;
+      nextBtn.disabled = !hasDoc || currentPage >= (pdfDoc ? pdfDoc.numPages : 0);
+      zoomInBtn.disabled = !hasDoc || scale >= maxScale;
+      zoomOutBtn.disabled = !hasDoc || scale <= minScale;
+      resetZoomBtn.disabled = !hasDoc || scale === 1;
+    }
+
+    async function renderPage(pageNumber) {
+      if (!pdfDoc) return;
+      const page = await pdfDoc.getPage(pageNumber);
+      const viewport = page.getViewport({ scale });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      const renderContext = {
+        canvasContext: ctx,
+        viewport,
+      };
+
+      await page.render(renderContext).promise;
+      updatePageStatus();
+      updateZoomStatus();
+      updateButtons();
+    }
+
+    function clampZoom(newScale) {
+      return Math.min(maxScale, Math.max(minScale, newScale));
+    }
+
+    function changeZoom(delta) {
+      if (!pdfDoc) return;
+      scale = clampZoom(scale + delta);
+      renderPage(currentPage);
+    }
+
+    function resetZoom() {
+      if (!pdfDoc) return;
+      scale = 1;
+      renderPage(currentPage);
+    }
+
+    function changePage(step) {
+      if (!pdfDoc) return;
+      const target = currentPage + step;
+      if (target < 1 || target > pdfDoc.numPages) return;
+      currentPage = target;
+      renderPage(currentPage);
+    }
+
+    async function openPdf(arrayBuffer) {
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      pdfDoc = await loadingTask.promise;
+      currentPage = 1;
+      scale = 1;
+      renderPage(currentPage);
+    }
+
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arrayBuffer = e.target.result;
+        openPdf(arrayBuffer);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    prevBtn.addEventListener('click', () => changePage(-1));
+    nextBtn.addEventListener('click', () => changePage(1));
+    zoomInBtn.addEventListener('click', () => changeZoom(scaleStep));
+    zoomOutBtn.addEventListener('click', () => changeZoom(-scaleStep));
+    resetZoomBtn.addEventListener('click', resetZoom);
+
+    updatePageStatus();
+    updateZoomStatus();
+    updateButtons();
+  </script>
+</body>
+</html>
