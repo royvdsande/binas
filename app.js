@@ -348,7 +348,6 @@ function renderIndex(filterValue = '') {
       button.innerHTML = `
         <div class="topic-meta">
           <p class="topic-title">${item.title}</p>
-          <span class="topic-code">Tabel ${item.code}</span>
         </div>
         <p class="topic-pages">Pagina's ${item.pageStart}–${item.pageEnd}</p>
         <p class="topic-pages">${pagesLabel}</p>
