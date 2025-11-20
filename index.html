@@ -1,18 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Custom PDF Viewer</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
     :root {
       color-scheme: light;
-      --accent: #0d6efd;
-      --bg: #f8f9fa;
+      --accent: #2563eb;
+      --accent-strong: #1d4ed8;
+      --bg: radial-gradient(circle at 20% 20%, #e0edff, #f5f7fb 40%),
+        radial-gradient(circle at 80% 0%, #e8e9ff, transparent 45%),
+        #f4f6fb;
       --panel: #ffffff;
-      --border: #dcdfe3;
-      --text: #1f2937;
+      --border: #d6dbe6;
+      --text: #0f172a;
+      --muted: #4b5563;
     }
 
     * {
@@ -21,63 +27,92 @@
 
     body {
       margin: 0;
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      padding: 16px;
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
-      padding: 24px;
     }
 
     .viewer-shell {
-      width: min(1100px, 100%);
+      width: min(1400px, calc(100% - 16px));
+      height: calc(100vh - 32px);
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
       overflow: hidden;
       display: grid;
       grid-template-rows: auto 1fr;
     }
 
     header {
-      padding: 12px 16px;
+      padding: 14px 18px;
       border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, #ffffff, #f6f7fb);
+      background: linear-gradient(180deg, #ffffff, #f6f8fc);
       display: flex;
-      gap: 12px;
+      gap: 16px;
       align-items: center;
       flex-wrap: wrap;
     }
 
-    header h1 {
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #eef2ff;
+      color: #1d4ed8;
+      border-radius: 12px;
+      border: 1px solid #dbe3ff;
+    }
+
+    .brand svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .brand .text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
       margin: 0;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
-      color: #0b1224;
+    }
+
+    .brand-subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
     }
 
     .file-picker {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 10px;
+      padding: 10px 12px;
       border: 1px dashed var(--border);
-      border-radius: 10px;
-      background: #f8f9fb;
+      border-radius: 12px;
+      background: #f8fafc;
       flex: 1;
       min-width: 260px;
     }
 
     .file-picker label {
-      font-weight: 600;
+      font-weight: 700;
       color: #0f172a;
       font-size: 14px;
     }
 
-    .file-picker input[type="file"] {
+    .file-picker input[type='file'] {
       width: 100%;
       font-size: 14px;
     }
@@ -85,36 +120,56 @@
     main {
       display: grid;
       grid-template-rows: auto 1fr;
-      min-height: 600px;
+      min-height: 0;
     }
 
     .toolbar {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       padding: 12px 16px;
       border-bottom: 1px solid var(--border);
       background: #fbfcfe;
       position: sticky;
       top: 0;
       z-index: 2;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .toolbar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f5f9;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
     }
 
     button {
       border: 1px solid var(--border);
       background: #ffffff;
       color: #111827;
-      padding: 8px 10px;
-      border-radius: 8px;
+      padding: 8px 12px;
+      border-radius: 10px;
       cursor: pointer;
-      font-weight: 600;
-      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    }
+
+    button svg {
+      width: 16px;
+      height: 16px;
     }
 
     button:hover:not(:disabled) {
       background: #eef3ff;
       border-color: #c9d7ff;
       transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.15);
     }
 
     button:disabled {
@@ -122,65 +177,210 @@
       cursor: not-allowed;
     }
 
-    .toolbar .spacer {
-      flex: 1;
+    .primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+      color: #ffffff;
+      border-color: #1e3a8a;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
     }
 
-    .page-status, .zoom-status {
+    .primary:hover:not(:disabled) {
+      background: linear-gradient(180deg, #1d4ed8, #1e40af);
+      border-color: #1e40af;
+    }
+
+    .toolbar-status {
+      margin-left: auto;
+      display: inline-flex;
+      gap: 12px;
+      align-items: center;
       font-weight: 700;
-      font-size: 14px;
-      padding: 0 8px;
-      color: #374151;
-      min-width: 120px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #eef2ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 8px 12px;
+      border: 1px solid #dbe4ff;
+      font-weight: 700;
     }
 
     .viewer-area {
-      background: #e5e7eb;
+      background: #f8fafc;
+      padding: 20px;
+      overflow: auto;
+      height: 100%;
+    }
+
+    .page-grid {
+      display: grid;
+      gap: 18px;
+      justify-content: center;
+      grid-template-columns: repeat(1, minmax(260px, 1fr));
+      align-items: start;
+    }
+
+    .page-grid.spread {
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+
+    .page-wrapper {
+      background: #ffffff;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+      padding: 16px;
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px;
-      overflow: auto;
     }
 
-    canvas {
-      background: #ffffff;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-      border: 1px solid #d5d8dd;
-      max-width: 100%;
+    .page-label {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      color: #ffffff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    canvas.page-canvas {
+      width: 100%;
       height: auto;
+      border-radius: 8px;
     }
 
-    .hint {
-      font-size: 14px;
-      color: #4b5563;
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .empty-state svg {
+      width: 72px;
+      height: 72px;
+      color: var(--accent);
     }
   </style>
 </head>
 <body>
   <div class="viewer-shell">
     <header>
-      <h1>Custom PDF Viewer</h1>
+      <div class="brand" aria-label="PDF viewer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 3h9l3 3v15H6z" />
+          <path d="M15 3v3h3" />
+          <path d="M9 12h3M9 16h6" />
+          <path d="M9 8h2" />
+        </svg>
+        <div class="text">
+          <p class="brand-title">Binas PDF Studio</p>
+          <p class="brand-subtitle">Volledig scherm · Modern design</p>
+        </div>
+      </div>
       <div class="file-picker">
-        <label for="file-input">Kies een lokaal PDF-bestand:</label>
+        <label for="file-input">Kies een PDF</label>
         <input id="file-input" type="file" accept="application/pdf" />
       </div>
     </header>
 
     <main>
       <div class="toolbar">
-        <button id="prev-page" aria-label="Vorige pagina">◀ Vorige</button>
-        <button id="next-page" aria-label="Volgende pagina">Volgende ▶</button>
-        <span class="page-status" id="page-status">Pagina – / –</span>
-        <div class="spacer"></div>
-        <button id="zoom-out" aria-label="Zoom uit">−</button>
-        <button id="zoom-in" aria-label="Zoom in">+</button>
-        <button id="reset-zoom" aria-label="Reset zoom">Reset</button>
-        <span class="zoom-status" id="zoom-status">Zoom: 100%</span>
+        <div class="toolbar-group" aria-label="Navigatie">
+          <button id="prev-page" title="Vorige pagina">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Vorige
+          </button>
+          <button id="next-page" title="Volgende pagina">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+            Volgende
+          </button>
+        </div>
+
+        <div class="toolbar-group" aria-label="Zoom">
+          <button id="zoom-out" title="Uitzoomen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+            Uitzoomen
+          </button>
+          <button id="zoom-in" title="Inzoomen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="11" y1="8" x2="11" y2="14" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+              <line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+            Inzoomen
+          </button>
+          <button id="reset-zoom" title="Reset zoom">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10" />
+              <polyline points="23 20 23 14 17 14" />
+              <path d="M20.49 9A9 9 0 0 0 6.15 4.36L1 10" />
+              <path d="M3.51 15A9 9 0 0 0 17.85 19.64L23 14" />
+            </svg>
+            Reset
+          </button>
+        </div>
+
+        <div class="toolbar-group" aria-label="Weergave">
+          <button id="toggle-view" class="primary" title="Schakel tussen 1 of 2 pagina's">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="8" height="16" rx="2" />
+              <rect x="13" y="4" width="8" height="16" rx="2" />
+            </svg>
+            Weergave
+          </button>
+          <span class="badge" id="view-mode" aria-live="polite">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="8" height="16" rx="2" />
+              <rect x="13" y="4" width="8" height="16" rx="2" />
+            </svg>
+            <span class="view-label">1 pagina</span>
+          </span>
+        </div>
+
+        <div class="toolbar-status">
+          <span id="page-status">Pagina – / –</span>
+          <span aria-hidden="true">•</span>
+          <span id="zoom-status" class="badge">Zoom: 100%</span>
+        </div>
       </div>
+
       <div class="viewer-area">
-        <canvas id="pdf-canvas" role="img" aria-label="PDF canvas"></canvas>
+        <div class="page-grid" id="page-grid">
+          <div class="empty-state" id="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <path d="M7 7h10v10H7z" />
+              <path d="M7 13h6" />
+            </svg>
+            <div>
+              <strong>Upload een PDF om te beginnen</strong>
+            </div>
+            <div>Volledig scherm, snelle navigatie en 2-pagina weergave.</div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -190,60 +390,103 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
     const fileInput = document.getElementById('file-input');
-    const canvas = document.getElementById('pdf-canvas');
-    const ctx = canvas.getContext('2d');
+    const pageGrid = document.getElementById('page-grid');
+    const emptyState = document.getElementById('empty-state');
 
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
     const zoomInBtn = document.getElementById('zoom-in');
     const zoomOutBtn = document.getElementById('zoom-out');
     const resetZoomBtn = document.getElementById('reset-zoom');
+    const toggleViewBtn = document.getElementById('toggle-view');
     const pageStatus = document.getElementById('page-status');
     const zoomStatus = document.getElementById('zoom-status');
+    const viewMode = document.getElementById('view-mode');
 
     let pdfDoc = null;
     let currentPage = 1;
     let scale = 1;
+    let isSpread = false;
     const minScale = 0.5;
     const maxScale = 3;
     const scaleStep = 0.15;
 
     function updatePageStatus() {
-      const total = pdfDoc ? pdfDoc.numPages : '–';
-      const current = pdfDoc ? currentPage : '–';
-      pageStatus.textContent = `Pagina ${current} / ${total}`;
+      if (!pdfDoc) {
+        pageStatus.textContent = 'Pagina – / –';
+        return;
+      }
+      if (isSpread) {
+        const secondPage = Math.min(currentPage + 1, pdfDoc.numPages);
+        const range = secondPage !== currentPage ? `${currentPage}–${secondPage}` : `${currentPage}`;
+        pageStatus.textContent = `Pagina ${range} / ${pdfDoc.numPages}`;
+        return;
+      }
+      pageStatus.textContent = `Pagina ${currentPage} / ${pdfDoc.numPages}`;
     }
 
     function updateZoomStatus() {
       zoomStatus.textContent = `Zoom: ${(scale * 100).toFixed(0)}%`;
     }
 
+    function updateViewModeLabel() {
+      const label = viewMode.querySelector('.view-label');
+      if (label) {
+        label.textContent = isSpread ? '2 pagina\'s' : '1 pagina';
+      }
+    }
+
     function updateButtons() {
       const hasDoc = Boolean(pdfDoc);
       prevBtn.disabled = !hasDoc || currentPage <= 1;
-      nextBtn.disabled = !hasDoc || currentPage >= (pdfDoc ? pdfDoc.numPages : 0);
+      const maxForNext = isSpread && pdfDoc ? pdfDoc.numPages - 1 : pdfDoc?.numPages ?? 0;
+      nextBtn.disabled = !hasDoc || currentPage >= maxForNext;
       zoomInBtn.disabled = !hasDoc || scale >= maxScale;
       zoomOutBtn.disabled = !hasDoc || scale <= minScale;
       resetZoomBtn.disabled = !hasDoc || scale === 1;
+      toggleViewBtn.disabled = !hasDoc && !isSpread;
     }
 
-    async function renderPage(pageNumber) {
+    async function renderPages() {
       if (!pdfDoc) return;
-      const page = await pdfDoc.getPage(pageNumber);
-      const viewport = page.getViewport({ scale });
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      pageGrid.innerHTML = '';
+      const pagesToRender = isSpread
+        ? [currentPage, currentPage + 1].filter((pageNumber) => pageNumber && pageNumber <= pdfDoc.numPages)
+        : [currentPage];
 
-      const renderContext = {
-        canvasContext: ctx,
-        viewport,
-      };
+      pageGrid.classList.toggle('spread', isSpread && pagesToRender.length > 1);
 
-      await page.render(renderContext).promise;
+      for (const pageNumber of pagesToRender) {
+        const page = await pdfDoc.getPage(pageNumber);
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'page-canvas';
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const renderContext = {
+          canvasContext: canvas.getContext('2d'),
+          viewport,
+        };
+
+        await page.render(renderContext).promise;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'page-wrapper';
+        const label = document.createElement('span');
+        label.className = 'page-label';
+        label.textContent = `Pagina ${pageNumber}`;
+        wrapper.appendChild(canvas);
+        wrapper.appendChild(label);
+        pageGrid.appendChild(wrapper);
+      }
+
       updatePageStatus();
       updateZoomStatus();
       updateButtons();
+      updateViewModeLabel();
     }
 
     function clampZoom(newScale) {
@@ -253,21 +496,24 @@
     function changeZoom(delta) {
       if (!pdfDoc) return;
       scale = clampZoom(scale + delta);
-      renderPage(currentPage);
+      renderPages();
     }
 
     function resetZoom() {
       if (!pdfDoc) return;
       scale = 1;
-      renderPage(currentPage);
+      renderPages();
     }
 
-    function changePage(step) {
+    function changePage(direction) {
       if (!pdfDoc) return;
-      const target = currentPage + step;
-      if (target < 1 || target > pdfDoc.numPages) return;
+      const step = isSpread ? 2 : 1;
+      let target = currentPage + direction * step;
+      if (target < 1) target = 1;
+      const upperBound = isSpread && pdfDoc.numPages > 1 ? pdfDoc.numPages - 1 : pdfDoc.numPages;
+      if (target > upperBound) target = upperBound;
       currentPage = target;
-      renderPage(currentPage);
+      renderPages();
     }
 
     async function openPdf(arrayBuffer) {
@@ -275,7 +521,20 @@
       pdfDoc = await loadingTask.promise;
       currentPage = 1;
       scale = 1;
-      renderPage(currentPage);
+      emptyState?.remove();
+      renderPages();
+    }
+
+    function toggleView() {
+      isSpread = !isSpread;
+      if (isSpread && currentPage % 2 === 0) {
+        currentPage = Math.max(1, currentPage - 1);
+      }
+      if (pdfDoc) {
+        renderPages();
+      } else {
+        updateViewModeLabel();
+      }
     }
 
     fileInput.addEventListener('change', (event) => {
@@ -294,10 +553,12 @@
     zoomInBtn.addEventListener('click', () => changeZoom(scaleStep));
     zoomOutBtn.addEventListener('click', () => changeZoom(-scaleStep));
     resetZoomBtn.addEventListener('click', resetZoom);
+    toggleViewBtn.addEventListener('click', toggleView);
 
     updatePageStatus();
     updateZoomStatus();
     updateButtons();
+    updateViewModeLabel();
   </script>
 </body>
 </html>
