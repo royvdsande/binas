@@ -257,7 +257,7 @@ let isDragging = false;
 let dragStart = { x: 0, y: 0 };
 let scrollStart = { left: 0, top: 0 };
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs';
 
 // Utility: toon status of fouten
 function setStatus(message) {
@@ -299,8 +299,16 @@ function renderIndex(filterValue = '') {
     const groupEl = document.createElement('div');
     groupEl.className = 'category-group';
 
+    const categoryClass = CATEGORY_CLASSES[category];
+    if (categoryClass) {
+      groupEl.classList.add(categoryClass);
+    }
+
     const header = document.createElement('h3');
     header.className = 'category-header';
+    if (categoryClass) {
+      header.classList.add(`${categoryClass}__title`);
+    }
     header.textContent = category;
     groupEl.appendChild(header);
 
