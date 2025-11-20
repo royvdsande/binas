@@ -382,18 +382,18 @@ function clampPage(page) {
 function getSpreadPages(page) {
   if (!spreadMode) return [clampPage(page)];
   const target = clampPage(page);
-  const first = target % 2 === 0 ? target - 1 : target;
+  const first = target % 2 === 0 ? target : Math.max(target - 1, 1);
   const pages = [first];
   if (first + 1 <= totalPages) pages.push(first + 1);
   return pages;
 }
 
-  async function renderPages() {
-    if (!pdfDoc) {
-      setStatus('Upload een BiNaS-PDF om te starten.');
-      canvasWrapper.innerHTML = '';
-      return;
-    }
+async function renderPages() {
+  if (!pdfDoc) {
+    setStatus('Upload een BiNaS-PDF om te starten.');
+    canvasWrapper.innerHTML = '';
+    return;
+  }
   clearError();
   setStatus('Bezig met renderen…');
   canvasWrapper.innerHTML = '';
@@ -452,8 +452,7 @@ function goToPage(target) {
 
 function toggleSpread() {
   spreadMode = !spreadMode;
-  toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
-  toggleViewBtn.classList.toggle('is-active', spreadMode);
+  updateSpreadButton();
   renderPages();
 }
 
@@ -580,6 +579,16 @@ window.addEventListener('resize', () => {
   if (lastFitMode) renderPages();
 });
 
+function updateSpreadButton() {
+  const label = spreadMode
+    ? 'Twee pagina\'s naast elkaar (actief)'
+    : 'Enkele pagina-weergave';
+  toggleViewBtn.setAttribute('aria-pressed', String(spreadMode));
+  toggleViewBtn.setAttribute('title', label);
+  toggleViewBtn.setAttribute('aria-label', label);
+  toggleViewBtn.classList.toggle('is-active', spreadMode);
+}
+
 function resetViewer() {
   currentPage = 1;
   totalPages = 0;
@@ -588,8 +597,7 @@ function resetViewer() {
   currentScale = 1;
   pageInput.value = '';
   pageInfo.textContent = 'Pagina - / -';
-  toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
-  toggleViewBtn.classList.toggle('is-active', spreadMode);
+  updateSpreadButton();
   canvasWrapper.innerHTML = '';
   setStatus('Upload een BiNaS-PDF om te starten.');
   disableControls();
@@ -607,8 +615,7 @@ async function loadPdfFromFile(file) {
     pdfDoc = await loadingTask.promise;
     totalPages = pdfDoc.numPages;
     pageInput.max = totalPages;
-    toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
-    toggleViewBtn.classList.toggle('is-active', spreadMode);
+    updateSpreadButton();
     enableControls();
     await renderPages();
   } catch (err) {
@@ -623,9 +630,29 @@ pdfUploadInput.addEventListener('change', (event) => {
   loadPdfFromFile(file);
 });
 
+async function loadPdfFromUrl(url) {
+  resetViewer();
+  setStatus('Standaard BiNaS laden…');
+  clearError();
+  try {
+    const loadingTask = pdfjsLib.getDocument({ url });
+    pdfDoc = await loadingTask.promise;
+    totalPages = pdfDoc.numPages;
+    pageInput.max = totalPages;
+    updateSpreadButton();
+    enableControls();
+    await renderPages();
+  } catch (error) {
+    console.error(error);
+    showError('Kon de standaard BiNaS niet laden. Probeer een eigen PDF te uploaden.');
+    setStatus('Standaard PDF laden mislukt');
+  }
+}
+
 function init() {
   resetViewer();
   renderIndex();
+  loadPdfFromUrl(PDF_URL);
 }
 
 init();
