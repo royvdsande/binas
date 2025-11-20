@@ -1,12 +1,12 @@
+// Basisconfiguratie voor de BiNaS viewer.
+const PDF_URL = 'https://drive.google.com/uc?export=download&id=1PvuI4LDnkbfIyujRxe74Urau2quj1hk-';
 // Basisconfiguratie voor de BiNaS viewer zonder externe download.
 const DEFAULT_SPREAD = true;
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3.5;
 const SCALE_STEP = 0.15;
 
-// pdf.js referentie (geladen via CDN in index.html)
-const pdfjsLib = window.pdfjsLib;
-
+// Voorbeeldindex, makkelijk uitbreidbaar zodra de echte pagina's bekend zijn.
 // Geïmporteerde inhoud van BiNaS (overzicht + fundering), paginanummers volgen later.
 const CATEGORY_CLASSES = {
   'Algemeen': 'category--algemeen',
@@ -18,6 +18,17 @@ const CATEGORY_CLASSES = {
   'Biologie': 'category--biologie',
 };
 const BINAS_INDEX = [
+  { category: 'Algemeen', code: '1', title: 'Grieks alfabet', pageStart: 7, pageEnd: 7 },
+  { category: 'Algemeen', code: '3', title: 'Grootheden en eenheden in het SI', pageStart: 9, pageEnd: 11 },
+  { category: 'Algemeen', code: '7', title: 'Omrekenfactoren van eenheden', pageStart: 15, pageEnd: 16 },
+  { category: 'Natuurkunde', code: '10', title: 'Waarden van enkele constanten', pageStart: 25, pageEnd: 26 },
+  { category: 'Natuurkunde', code: '14A', title: 'Kook- en smeltpunten', pageStart: 33, pageEnd: 34 },
+  { category: 'Natuurkunde', code: '15', title: 'Dichtheden van vaste stoffen', pageStart: 35, pageEnd: 35 },
+  { category: 'Wiskunde', code: '24', title: 'Standaardafwijking', pageStart: 47, pageEnd: 47 },
+  { category: 'Scheikunde', code: '40', title: 'Naamgeving binair', pageStart: 65, pageEnd: 66 },
+  { category: 'Biologie', code: '78', title: 'Samenstelling bloedplasma en serum', pageStart: 96, pageEnd: 97 },
+  { category: 'Biologie', code: '87', title: 'Hormoonsystemen', pageStart: 110, pageEnd: 112 },
+  { category: 'Biologie', code: '93', title: 'Afweer en immuniteit', pageStart: 122, pageEnd: 125 },
   { category: 'Algemeen', title: 'Grieks alfabet', pageStart: null, pageEnd: null },
   { category: 'Algemeen', title: 'Vermenigvuldigingsfactoren', pageStart: null, pageEnd: null },
   { category: 'Algemeen', title: 'Basisgrootheden en grondeenheden in het SI', pageStart: null, pageEnd: null },
@@ -269,11 +280,8 @@ let isDragging = false;
 let dragStart = { x: 0, y: 0 };
 let scrollStart = { left: 0, top: 0 };
 
-if (pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
-} else {
-  console.warn('pdf.js kon niet worden geladen. Uploaden is uitgeschakeld.');
-}
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs';
 
 // Utility: toon status of fouten
 function setStatus(message) {
@@ -305,6 +313,8 @@ function renderIndex(filterValue = '') {
     if (!query) return true;
     return (
       item.title.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query) ||
+      item.code.toLowerCase().includes(query)
       item.category.toLowerCase().includes(query)
     );
   });
@@ -332,14 +342,19 @@ function renderIndex(filterValue = '') {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'topic-item';
+      button.setAttribute('data-page', item.pageStart);
       button.setAttribute('data-page', item.pageStart ?? '');
       const pagesLabel = item.pageStart ? `Pagina's ${item.pageStart}${item.pageEnd ? `–${item.pageEnd}` : ''}` : 'Pagina volgt';
       button.innerHTML = `
         <div class="topic-meta">
           <p class="topic-title">${item.title}</p>
         </div>
+        <p class="topic-pages">Pagina's ${item.pageStart}–${item.pageEnd}</p>
         <p class="topic-pages">${pagesLabel}</p>
       `;
+      button.addEventListener('click', () => {
+        goToPage(item.pageStart);
+      });
 
       if (item.pageStart) {
         button.addEventListener('click', () => goToPage(item.pageStart));
@@ -379,6 +394,7 @@ function getSpreadPages(page) {
 }
 
 async function renderPages() {
+  if (!pdfDoc) return;
   if (!pdfDoc) {
     setStatus('Upload een BiNaS-PDF om te starten.');
     canvasWrapper.innerHTML = '';
@@ -442,6 +458,7 @@ function goToPage(target) {
 
 function toggleSpread() {
   spreadMode = !spreadMode;
+  toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
   toggleViewBtn.classList.toggle('is-active', spreadMode);
   renderPages();
 }
@@ -522,34 +539,7 @@ pageInput.addEventListener('keydown', (e) => {
 
 // Panning (muis slepen)
 canvasWrapper.addEventListener('mousedown', (e) => {
-  isDragging = true;
-  dragStart = { x: e.clientX, y: e.clientY };
-  scrollStart = { left: canvasWrapper.scrollLeft, top: canvasWrapper.scrollTop };
-  canvasWrapper.classList.add('dragging');
-});
-
-window.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  const dx = e.clientX - dragStart.x;
-  const dy = e.clientY - dragStart.y;
-  canvasWrapper.scrollLeft = scrollStart.left - dx;
-  canvasWrapper.scrollTop = scrollStart.top - dy;
-});
-
-window.addEventListener('mouseup', () => {
-  isDragging = false;
-  canvasWrapper.classList.remove('dragging');
-});
-
-canvasWrapper.addEventListener('wheel', (e) => {
-  if (e.ctrlKey) {
-    e.preventDefault();
-    zoom(e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP);
-  }
-});
-
-// Keyboard shortcuts
-window.addEventListener('keydown', (e) => {
+@@ -296,49 +546,70 @@ window.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea')) return;
   switch (e.key) {
     case 'ArrowRight':
@@ -575,6 +565,8 @@ window.addEventListener('resize', () => {
   if (lastFitMode) renderPages();
 });
 
+// PDF laden
+async function loadPdf() {
 function resetViewer() {
   currentPage = 1;
   totalPages = 0;
@@ -589,26 +581,24 @@ function resetViewer() {
 
 async function loadPdfFromFile(file) {
   if (!file) return;
-  if (!pdfjsLib) {
-    showError('pdf.js kon niet worden geladen. Controleer je internetverbinding en ververs de pagina.');
-    setStatus('Laden mislukt');
-    return;
-  }
   pdfUploadInput.value = '';
   resetViewer();
   setStatus('PDF laden…');
   clearError();
   try {
+    const loadingTask = pdfjsLib.getDocument({ url: PDF_URL, withCredentials: false });
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     pdfDoc = await loadingTask.promise;
     totalPages = pdfDoc.numPages;
     pageInput.max = totalPages;
+    toggleViewBtn.textContent = spreadMode ? 'Spread' : 'Enkele pagina';
     toggleViewBtn.classList.toggle('is-active', spreadMode);
     enableControls();
     await renderPages();
   } catch (err) {
     console.error(err);
+    showError('Kon de PDF niet laden. Controleer de internetverbinding of CORS-instellingen.');
     showError('Kon de PDF niet laden. Controleer of het bestand geldig is.');
     setStatus('Laden mislukt');
   }
@@ -621,6 +611,7 @@ pdfUploadInput.addEventListener('change', (event) => {
 
 function init() {
   renderIndex();
+  loadPdf();
   resetViewer();
 }
 

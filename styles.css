@@ -9,12 +9,6 @@
   --muted: #6b7280;
   --danger: #b3261e;
   --shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-  --cat-algemeen: #7c3aed;
-  --cat-algemeen-achterin: #8b5e3c;
-  --cat-natuurkunde: #2563eb;
-  --cat-wiskunde: #8b5e3c;
-  --cat-scheikunde: #dc2626;
-  --cat-biologie: #16a34a;
 }
 
 * {
@@ -175,30 +169,6 @@ h1, h2, h3, h4 {
   box-shadow: var(--shadow);
 }
 
-.category--algemeen {
-  border-color: rgba(124, 58, 237, 0.25);
-}
-
-.category--algemeen-achterin {
-  border-color: rgba(139, 94, 60, 0.25);
-}
-
-.category--natuurkunde {
-  border-color: rgba(37, 99, 235, 0.25);
-}
-
-.category--wiskunde {
-  border-color: rgba(139, 94, 60, 0.35);
-}
-
-.category--scheikunde {
-  border-color: rgba(220, 38, 38, 0.25);
-}
-
-.category--biologie {
-  border-color: rgba(22, 163, 74, 0.25);
-}
-
 .category-header {
   margin: 0;
   padding: 12px 14px;
@@ -206,30 +176,6 @@ h1, h2, h3, h4 {
   border-bottom: 1px solid var(--border-color);
   font-size: 15px;
   font-weight: 700;
-}
-
-.category--algemeen__title {
-  color: var(--cat-algemeen);
-}
-
-.category--algemeen-achterin__title {
-  color: var(--cat-algemeen-achterin);
-}
-
-.category--wiskunde__title {
-  color: var(--cat-wiskunde);
-}
-
-.category--natuurkunde__title {
-  color: var(--cat-natuurkunde);
-}
-
-.category--scheikunde__title {
-  color: var(--cat-scheikunde);
-}
-
-.category--biologie__title {
-  color: var(--cat-biologie);
 }
 
 .topic-item {
