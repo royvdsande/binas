@@ -1247,6 +1247,21 @@
             "isSubtable": true
           }
         ]
+      },
+      {
+        "label": "98",
+        "title": "Molaire massa's van veel gebruikte stoffen",
+        "page": 312
+      },
+      {
+        "label": "99",
+        "title": "Periodiek systeem der elementen",
+        "page": 313
+      },
+      {
+        "label": "100",
+        "title": "Afstandschaal in de natuurwetenschappen",
+        "page": 315
       }
     ]
   },
@@ -2347,21 +2362,6 @@
         "label": "–",
         "title": "Register",
         "page": 301
-      },
-      {
-        "label": "98",
-        "title": "Molaire massa's van veel gebruikte stoffen",
-        "page": 312
-      },
-      {
-        "label": "99",
-        "title": "Periodiek systeem der elementen",
-        "page": 313
-      },
-      {
-        "label": "100",
-        "title": "Afstandschaal in de natuurwetenschappen",
-        "page": 315
       }
     ]
   }

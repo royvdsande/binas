@@ -2,6 +2,8 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 const fileInput = document.getElementById('file-input');
+const selectFileButton = document.getElementById('select-file');
+const loadDefaultButton = document.getElementById('load-default');
 const pageGrid = document.getElementById('page-grid');
 const emptyState = document.getElementById('empty-state');
 const navList = document.getElementById('nav-list');
@@ -16,6 +18,8 @@ const fitWidthBtn = document.getElementById('fit-width');
 const resetZoomBtn = document.getElementById('reset-zoom');
 const toggleViewBtn = document.getElementById('toggle-view');
 const pageStatus = document.getElementById('page-status');
+const pageInput = document.getElementById('page-input');
+const pageTotal = document.getElementById('page-total');
 const zoomStatus = document.getElementById('zoom-status');
 const viewerArea = document.querySelector('.viewer-area');
 
@@ -72,15 +76,36 @@ async function calculateFitHeightScale() {
 function updatePageStatus() {
   if (!pdfDoc) {
     pageStatus.textContent = 'Pagina – / –';
+    if (pageInput) {
+      pageInput.value = '';
+      pageInput.disabled = true;
+    }
+    if (pageTotal) {
+      pageTotal.textContent = '/ –';
+    }
     return;
   }
   if (isSpread) {
     const secondPage = Math.min(currentPage + 1, pdfDoc.numPages);
     const range = secondPage !== currentPage ? `${currentPage}–${secondPage}` : `${currentPage}`;
     pageStatus.textContent = `Pagina ${range} / ${pdfDoc.numPages}`;
+    if (pageInput) {
+      pageInput.value = currentPage;
+      pageInput.disabled = false;
+    }
+    if (pageTotal) {
+      pageTotal.textContent = `/ ${pdfDoc.numPages}`;
+    }
     return;
   }
   pageStatus.textContent = `Pagina ${currentPage} / ${pdfDoc.numPages}`;
+  if (pageInput) {
+    pageInput.value = currentPage;
+    pageInput.disabled = false;
+  }
+  if (pageTotal) {
+    pageTotal.textContent = `/ ${pdfDoc.numPages}`;
+  }
 }
 
 function updateZoomStatus() {
@@ -359,6 +384,23 @@ fileInput.addEventListener('change', (event) => {
   reader.readAsArrayBuffer(file);
 });
 
+selectFileButton?.addEventListener('click', () => {
+  fileInput?.click();
+});
+
+loadDefaultButton?.addEventListener('click', async () => {
+  try {
+    const response = await fetch('Binas.pdf');
+    if (!response.ok) {
+      throw new Error(`Kon Binas.pdf niet laden (${response.status})`);
+    }
+    const buffer = await response.arrayBuffer();
+    openPdf(buffer);
+  } catch (error) {
+    console.error(error);
+  }
+});
+
 prevBtn.addEventListener('click', () => changePage(-1));
 nextBtn.addEventListener('click', () => changePage(1));
 zoomInBtn.addEventListener('click', () => changeZoom(scaleStep));
@@ -383,6 +425,15 @@ viewerArea?.addEventListener(
 
 navSearch?.addEventListener('input', (event) => {
   renderNavigation(event.target.value);
+});
+
+pageInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && pdfDoc) {
+    const target = Number.parseInt(event.target.value, 10);
+    if (!Number.isNaN(target)) {
+      goToPage(target);
+    }
+  }
 });
 
 window.addEventListener('resize', () => {
