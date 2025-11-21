@@ -751,6 +751,24 @@
             "title": "UV-VIS-spectrometrie",
             "page": 97,
             "isSubtable": true
+          },
+          {
+            "label": "B",
+            "title": "NMR-spectrometrie",
+            "page": 98,
+            "isSubtable": true
+          },
+          {
+            "label": "C",
+            "title": "IR-spectrometrie",
+            "page": 99,
+            "isSubtable": true
+          },
+          {
+            "label": "D",
+            "title": "Massaspectrometrie",
+            "page": 101,
+            "isSubtable": true
           }
         ]
       },
@@ -1229,21 +1247,6 @@
             "isSubtable": true
           }
         ]
-      },
-      {
-        "label": "98",
-        "title": "Molaire massa's van veel gebruikte stoffen",
-        "page": 312
-      },
-      {
-        "label": "99",
-        "title": "Periodiek systeem der elementen",
-        "page": 313
-      },
-      {
-        "label": "100",
-        "title": "Afstandschaal in de natuurwetenschappen",
-        "page": 315
       }
     ]
   },
@@ -2348,27 +2351,24 @@
     ]
   },
   {
-    "section": "Scheikunde – Achterin",
+    "section": "Scheikunde",
     "theme": "scheikunde",
     "items": [
-          {
-            "label": "B",
-            "title": "NMR-spectrometrie",
-            "page": 98,
-            "isSubtable": true
-          },
-          {
-            "label": "C",
-            "title": "IR-spectrometrie",
-            "page": 99,
-            "isSubtable": true
-          },
-          {
-            "label": "D",
-            "title": "Massaspectrometrie",
-            "page": 101,
-            "isSubtable": true
-          }
+      {
+        "label": "98",
+        "title": "Molaire massa's van veel gebruikte stoffen",
+        "page": 312
+      },
+      {
+        "label": "99",
+        "title": "Periodiek systeem der elementen",
+        "page": 313
+      },
+      {
+        "label": "100",
+        "title": "Afstandschaal in de natuurwetenschappen",
+        "page": 315
+      }
     ]
   }
   
