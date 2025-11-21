@@ -1,0 +1,498 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --bg: #eef2f7;
+  --panel: #ffffff;
+  --border: #d6dbe6;
+  --text: #0f172a;
+  --muted: #4b5563;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.no-select {
+  user-select: none;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+  height: 100vh;
+  background: #ffffff;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px 6px 10px;
+  color: #0f172a;
+}
+
+.brand svg {
+  width: 30px;
+  height: 30px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.brand .text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.brand-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.file-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: #f8fafc;
+  width: 100%;
+}
+
+.file-picker label {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.file-picker input[type='file'] {
+  width: 100%;
+  font-size: 14px;
+}
+
+main {
+  display: contents;
+}
+
+.content {
+  display: contents;
+}
+
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: #f8fafc;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 2;
+  padding-bottom: 4px;
+}
+
+.sidebar h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.nav-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+
+.nav-scroll {
+  overflow: auto;
+  padding-right: 2px;
+  flex: 1;
+  min-height: 0;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.search-box svg {
+  width: 18px;
+  height: 18px;
+}
+
+.search-box input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.06);
+}
+
+.nav-group-header {
+  padding: 8px 10px;
+  background: #f1f5f9;
+  font-weight: 800;
+  font-size: 13px;
+  color: #1f2937;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-group-header.theme-algemeen {
+  background: #c94195;
+  color: #ffffff;
+  border-color: #c94195;
+}
+
+.nav-group-header.theme-natuurkunde {
+  background: #0163ac;
+  color: #ffffff;
+  border-color: #0163ac;
+}
+
+.nav-group-header.theme-wiskunde {
+  background: #a0341a;
+  color: #ffffff;
+  border-color: #a0341a;
+}
+
+.nav-group-header.theme-scheikunde {
+  background: #ff3b2d;
+  color: #ffffff;
+  border-color: #ff3b2d;
+}
+
+.nav-group-header.theme-biologie {
+  background: #2c9a44;
+  color: #ffffff;
+  border-color: #2c9a44;
+}
+
+.nav-group-header.theme-register {
+  background: #aa9b88;
+  color: #ffffff;
+  border-color: #aa9b88;
+}
+
+.nav-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-sublist {
+  padding-left: 12px;
+  border-left: 2px dashed #e5e7eb;
+}
+
+.nav-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  font-weight: 500;
+  color: #111827;
+}
+
+.nav-item:hover {
+  background: #eef3ff;
+  color: #1d4ed8;
+}
+
+.nav-item-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.entry-label {
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+}
+
+.entry-title {
+  font-weight: 500;
+  font-style: normal;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.entry-title.subtable-title {
+  font-style: italic;
+}
+
+.nav-item[data-theme='algemeen'] .entry-label {
+  color: #c94195;
+}
+
+.nav-item[data-theme='natuurkunde'] .entry-label {
+  color: #0163ac;
+}
+
+.nav-item[data-theme='wiskunde'] .entry-label {
+  color: #a0341a;
+}
+
+.nav-item[data-theme='scheikunde'] .entry-label {
+  color: #ff3b2d;
+}
+
+.nav-item[data-theme='biologie'] .entry-label {
+  color: #2c9a44;
+}
+
+.nav-item[data-theme='register'] .entry-label {
+  color: #aa9b88;
+}
+
+.nav-item .meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex-wrap: wrap;
+}
+
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+button {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: #111827;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  min-width: 34px;
+  min-height: 34px;
+}
+
+button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.toolbar button span {
+  display: none;
+}
+
+button:hover:not(:disabled) {
+  background: #eef3ff;
+  border-color: #c9d7ff;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #1d4ed8;
+}
+
+.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1e40af;
+}
+
+.toolbar-status {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eef2ff;
+  color: #1d4ed8;
+  border-radius: 10px;
+  padding: 6px 10px;
+  border: 1px solid #dbe4ff;
+  font-weight: 700;
+}
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  height: 100vh;
+  background: #ffffff;
+}
+
+.viewer-area {
+  flex: 1;
+  background: #f7f9fb;
+  padding: 0;
+  overflow: auto;
+  height: 100%;
+}
+
+.page-grid {
+  display: grid;
+  gap: 16px;
+  justify-content: center;
+  grid-template-columns: repeat(1, minmax(260px, 1fr));
+  align-items: start;
+  padding: 16px;
+}
+
+.page-grid.spread {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.page-wrapper {
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+canvas.page-canvas {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 50px 16px;
+  color: var(--muted);
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.empty-state svg {
+  width: 72px;
+  height: 72px;
+  color: var(--accent);
+}
