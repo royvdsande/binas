@@ -71,13 +71,6 @@ body {
   white-space: nowrap;
 }
 
-.file-picker {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 12px;
-}
-
 main {
   display: contents;
 }
@@ -409,6 +402,12 @@ button svg {
   height: 18px;
 }
 
+.controls button svg {
+  stroke: currentColor;
+  shape-rendering: geometricPrecision;
+  vector-effect: non-scaling-stroke;
+}
+
 .toolbar button span {
   display: none;
 }
@@ -428,6 +427,17 @@ button:disabled {
   background: #2563eb;
   color: #ffffff;
   border-color: #1d4ed8;
+}
+
+.secondary {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: var(--border);
+}
+
+.secondary:hover:not(:disabled) {
+  background: #eef2f7;
+  border-color: #cbd5e1;
 }
 
 .primary:hover:not(:disabled) {
@@ -452,7 +462,7 @@ button:disabled {
 }
 
 #zoom-status {
-  color: var(--accent-strong);
+  color: #0f172a;
 }
 
 .badge {
@@ -539,8 +549,30 @@ canvas.page-canvas {
   justify-items: center;
 }
 
-.empty-state svg {
-  width: 72px;
-  height: 72px;
-  color: var(--accent);
+.empty-state .state-text {
+  display: grid;
+  gap: 4px;
+}
+
+.empty-state .muted {
+  color: var(--muted);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e2e8f0;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

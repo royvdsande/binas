@@ -2,10 +2,11 @@ const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 const fileInput = document.getElementById('file-input');
-const selectFileButton = document.getElementById('select-file');
-const loadDefaultButton = document.getElementById('load-default');
 const pageGrid = document.getElementById('page-grid');
 const emptyState = document.getElementById('empty-state');
+const loadingSpinner = document.getElementById('loading-spinner');
+const loadingMessage = document.getElementById('loading-message');
+const manualImportButton = document.getElementById('manual-import');
 const navList = document.getElementById('nav-list');
 const navSearch = document.getElementById('nav-search');
 
@@ -29,6 +30,7 @@ let scale = 1;
 let isSpread = false;
 let fitMode = null;
 let navigationData = [];
+let userProvidedDocument = false;
 const minScale = 0.2;
 const maxScale = 4;
 const scaleStep = 0.15;
@@ -75,7 +77,9 @@ async function calculateFitHeightScale() {
 
 function updatePageStatus() {
   if (!pdfDoc) {
-    pageStatus.textContent = 'Pagina – / –';
+    if (pageStatus) {
+      pageStatus.textContent = 'Pagina – / –';
+    }
     if (pageInput) {
       pageInput.value = '';
       pageInput.disabled = true;
@@ -88,7 +92,9 @@ function updatePageStatus() {
   if (isSpread) {
     const secondPage = Math.min(currentPage + 1, pdfDoc.numPages);
     const range = secondPage !== currentPage ? `${currentPage}–${secondPage}` : `${currentPage}`;
-    pageStatus.textContent = `Pagina ${range} / ${pdfDoc.numPages}`;
+    if (pageStatus) {
+      pageStatus.textContent = `Pagina ${range} / ${pdfDoc.numPages}`;
+    }
     if (pageInput) {
       pageInput.value = currentPage;
       pageInput.disabled = false;
@@ -98,7 +104,9 @@ function updatePageStatus() {
     }
     return;
   }
-  pageStatus.textContent = `Pagina ${currentPage} / ${pdfDoc.numPages}`;
+  if (pageStatus) {
+    pageStatus.textContent = `Pagina ${currentPage} / ${pdfDoc.numPages}`;
+  }
   if (pageInput) {
     pageInput.value = currentPage;
     pageInput.disabled = false;
@@ -243,6 +251,35 @@ async function openPdf(arrayBuffer) {
   renderPages();
 }
 
+function setLoadingState(message, { showSpinner = true } = {}) {
+  if (loadingMessage) {
+    loadingMessage.textContent = message;
+  }
+  if (loadingSpinner) {
+    loadingSpinner.classList.toggle('hidden', !showSpinner);
+  }
+  emptyState?.classList.remove('hidden');
+}
+
+async function loadDefaultPdf() {
+  setLoadingState('Binas.pdf wordt automatisch geladen...', { showSpinner: true });
+
+  try {
+    const response = await fetch('Binas.pdf');
+    if (!response.ok) {
+      throw new Error(`Kon Binas.pdf niet laden (${response.status})`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    if (!userProvidedDocument) {
+      await openPdf(buffer);
+    }
+  } catch (error) {
+    console.error(error);
+    setLoadingState('Automatisch laden mislukt. Importeer zelf een PDF.', { showSpinner: false });
+  }
+}
+
 function toggleView() {
   isSpread = !isSpread;
   if (isSpread && currentPage % 2 === 0) {
@@ -376,6 +413,8 @@ async function loadNavigationData() {
 fileInput.addEventListener('change', (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
+  userProvidedDocument = true;
+  setLoadingState('Eigen document wordt geladen...', { showSpinner: true });
   const reader = new FileReader();
   reader.onload = (e) => {
     const arrayBuffer = e.target.result;
@@ -384,21 +423,8 @@ fileInput.addEventListener('change', (event) => {
   reader.readAsArrayBuffer(file);
 });
 
-selectFileButton?.addEventListener('click', () => {
+manualImportButton?.addEventListener('click', () => {
   fileInput?.click();
-});
-
-loadDefaultButton?.addEventListener('click', async () => {
-  try {
-    const response = await fetch('Binas.pdf');
-    if (!response.ok) {
-      throw new Error(`Kon Binas.pdf niet laden (${response.status})`);
-    }
-    const buffer = await response.arrayBuffer();
-    openPdf(buffer);
-  } catch (error) {
-    console.error(error);
-  }
 });
 
 prevBtn.addEventListener('click', () => changePage(-1));
@@ -441,6 +467,7 @@ window.addEventListener('resize', () => {
   renderPages();
 });
 
+loadDefaultPdf();
 loadNavigationData();
 
 updatePageStatus();
