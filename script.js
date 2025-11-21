@@ -9,6 +9,10 @@ const loadingMessage = document.getElementById('loading-message');
 const manualImportButton = document.getElementById('manual-import');
 const navList = document.getElementById('nav-list');
 const navSearch = document.getElementById('nav-search');
+const tocToggleBtn = document.getElementById('toc-toggle');
+const tocOverlay = document.getElementById('toc-overlay');
+const tocCloseBtn = document.getElementById('toc-close');
+const tocList = document.getElementById('toc-list');
 
 const prevBtn = document.getElementById('prev-page');
 const nextBtn = document.getElementById('next-page');
@@ -36,15 +40,19 @@ const maxScale = 4;
 const scaleStep = 0.15;
 
 const singlePageIcon = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="6" y="4" width="12" height="16" rx="2" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6" y="4" width="12" height="16" rx="2.5" />
+    <path d="M9.5 9.5h5" />
+    <path d="M9.5 13h5" />
   </svg>
 `;
 
 const spreadIcon = `
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="3" y="4" width="8" height="16" rx="2" />
-    <rect x="13" y="4" width="8" height="16" rx="2" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="4" width="7.5" height="16" rx="2.25" />
+    <rect x="13" y="4" width="7.5" height="16" rx="2.25" />
+    <path d="M6.25 9.5h5" />
+    <path d="M15.75 13h-5" />
   </svg>
 `;
 function getGridMetrics() {
@@ -290,11 +298,44 @@ function toggleView() {
   }
 }
 
-function filterItems(items, query) {
+function normalizeText(value) {
+  return value
+    ?.toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[^\p{Letter}\p{Number}\s]/gu, ' ')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function itemMatchesQuery(item, query, compactQuery, ancestors = []) {
+  if (!query) return true;
+
+  const labels = ancestors.map((ancestor) => ancestor.label).filter(Boolean);
+  if (item.label) {
+    labels.push(item.label);
+  }
+
+  const labelWithSpaces = normalizeText(labels.join(' '));
+  const labelCompact = labelWithSpaces?.replace(/\s+/g, '');
+  const titles = normalizeText([...ancestors.map((ancestor) => ancestor.title || ''), item.title || ''].join(' '));
+  const combinedLabelTitle = normalizeText(`${labels.join(' ')} ${item.title || ''}`);
+  const pageText = normalizeText(item.page || '');
+
+  const haystack = [labelWithSpaces, labelCompact, titles, combinedLabelTitle, pageText]
+    .filter(Boolean)
+    .flatMap((entry) => [entry, entry.replace(/\s+/g, '')]);
+
+  return haystack.some((entry) => entry.includes(query) || entry.includes(compactQuery));
+}
+
+function filterItems(items, query, compactQuery, ancestors = []) {
   return items
     .map((item) => {
-      const matches = !query || item.title.toLowerCase().includes(query);
-      const children = item.children ? filterItems(item.children, query) : [];
+      const currentAncestors = [...ancestors, { label: item.label, title: item.title }];
+      const matches = itemMatchesQuery(item, query, compactQuery, ancestors);
+      const children = item.children ? filterItems(item.children, query, compactQuery, currentAncestors) : [];
       if (matches || children.length) {
         return { ...item, children };
       }
@@ -303,7 +344,7 @@ function filterItems(items, query) {
     .filter(Boolean);
 }
 
-function renderEntries(items, container, theme) {
+function renderEntries(items, container, theme, onSelect) {
   items.forEach((item) => {
     const listItem = document.createElement('li');
     const button = document.createElement('button');
@@ -335,26 +376,32 @@ function renderEntries(items, container, theme) {
 
     button.appendChild(content);
     button.appendChild(meta);
-    button.addEventListener('click', () => goToPage(item.page));
+    button.addEventListener('click', () => {
+      goToPage(item.page);
+      if (typeof onSelect === 'function') {
+        onSelect();
+      }
+    });
     listItem.appendChild(button);
     container.appendChild(listItem);
 
     if (item.children?.length) {
       const subList = document.createElement('ul');
       subList.className = 'nav-sublist';
-      renderEntries(item.children, subList, theme);
+      renderEntries(item.children, subList, theme, onSelect);
       container.appendChild(subList);
     }
   });
 }
 
-function renderNavigation(query = '') {
-  if (!navList) return;
-  navList.innerHTML = '';
-  const normalizedQuery = query.trim().toLowerCase();
+function renderNavigation(query = '', targetList = navList, { onSelect } = {}) {
+  if (!targetList) return;
+  targetList.innerHTML = '';
+  const normalizedQuery = normalizeText(query);
+  const compactQuery = normalizedQuery?.replace(/\s+/g, '') || '';
 
   navigationData.forEach((group) => {
-    const filteredItems = filterItems(group.items, normalizedQuery);
+    const filteredItems = filterItems(group.items, normalizedQuery, compactQuery);
     if (!filteredItems.length) return;
 
     const groupItem = document.createElement('li');
@@ -369,27 +416,28 @@ function renderNavigation(query = '') {
     groupItem.appendChild(header);
 
     const groupList = document.createElement('ul');
-    renderEntries(filteredItems, groupList, group.theme);
+    renderEntries(filteredItems, groupList, group.theme, onSelect);
     groupItem.appendChild(groupList);
 
-    navList.appendChild(groupItem);
+    targetList.appendChild(groupItem);
   });
 
-  if (!navList.children.length) {
+  if (!targetList.children.length) {
     const emptyItem = document.createElement('li');
     emptyItem.textContent = navigationData.length
       ? 'Geen resultaten gevonden.'
       : 'Navigatie wordt geladen...';
     emptyItem.style.padding = '12px';
     emptyItem.style.color = 'var(--muted)';
-    navList.appendChild(emptyItem);
+    targetList.appendChild(emptyItem);
   }
 }
 
 async function loadNavigationData() {
   if (!navList) return;
 
-  renderNavigation();
+  renderNavigation('', navList);
+  renderNavigation('', tocList, { onSelect: closeTocOverlay });
 
   try {
     const response = await fetch('navigation-data.json');
@@ -398,16 +446,35 @@ async function loadNavigationData() {
     }
 
     navigationData = await response.json();
-    renderNavigation();
+    renderNavigation(navSearch?.value || '', navList);
+    renderNavigation(navSearch?.value || '', tocList, { onSelect: closeTocOverlay });
   } catch (error) {
     console.error(error);
     navList.innerHTML = '';
+    tocList.innerHTML = '';
     const errorItem = document.createElement('li');
     errorItem.textContent = 'Navigatie kon niet worden geladen.';
     errorItem.style.padding = '12px';
     errorItem.style.color = 'var(--muted)';
     navList.appendChild(errorItem);
+    const errorItemOverlay = errorItem.cloneNode(true);
+    tocList.appendChild(errorItemOverlay);
   }
+}
+
+function openTocOverlay() {
+  if (!tocOverlay) return;
+  tocOverlay.classList.add('visible');
+  tocOverlay.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('toc-open');
+  renderNavigation(navSearch?.value || '', tocList, { onSelect: closeTocOverlay });
+}
+
+function closeTocOverlay() {
+  if (!tocOverlay) return;
+  tocOverlay.classList.remove('visible');
+  tocOverlay.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('toc-open');
 }
 
 fileInput.addEventListener('change', (event) => {
@@ -450,7 +517,23 @@ viewerArea?.addEventListener(
 );
 
 navSearch?.addEventListener('input', (event) => {
-  renderNavigation(event.target.value);
+  renderNavigation(event.target.value, navList);
+  renderNavigation(event.target.value, tocList, { onSelect: closeTocOverlay });
+});
+
+tocToggleBtn?.addEventListener('click', openTocOverlay);
+tocCloseBtn?.addEventListener('click', closeTocOverlay);
+
+tocOverlay?.addEventListener('click', (event) => {
+  if (event.target === tocOverlay) {
+    closeTocOverlay();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && tocOverlay?.classList.contains('visible')) {
+    closeTocOverlay();
+  }
 });
 
 pageInput?.addEventListener('keydown', (event) => {
