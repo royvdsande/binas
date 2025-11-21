@@ -751,24 +751,6 @@
             "title": "UV-VIS-spectrometrie",
             "page": 97,
             "isSubtable": true
-          },
-          {
-            "label": "B",
-            "title": "NMR-spectrometrie",
-            "page": 98,
-            "isSubtable": true
-          },
-          {
-            "label": "C",
-            "title": "IR-spectrometrie",
-            "page": 99,
-            "isSubtable": true
-          },
-          {
-            "label": "D",
-            "title": "Massaspectrometrie",
-            "page": 101,
-            "isSubtable": true
           }
         ]
       },
@@ -2364,5 +2346,30 @@
         "page": 301
       }
     ]
+  },
+  {
+    "section": "Scheikunde – Achterin",
+    "theme": "scheikunde",
+    "items": [
+          {
+            "label": "B",
+            "title": "NMR-spectrometrie",
+            "page": 98,
+            "isSubtable": true
+          },
+          {
+            "label": "C",
+            "title": "IR-spectrometrie",
+            "page": 99,
+            "isSubtable": true
+          },
+          {
+            "label": "D",
+            "title": "Massaspectrometrie",
+            "page": 101,
+            "isSubtable": true
+          }
+    ]
   }
+  
 ]
