@@ -330,23 +330,30 @@ main {
   font-weight: 700;
 }
 
-.toolbar {
+.toolbar,
+.controls {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 10px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   background: #ffffff;
   position: sticky;
   top: 0;
   z-index: 2;
   flex-wrap: wrap;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
 }
 
-.toolbar-group {
+.toolbar-group,
+.control-group {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 4px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
 button {
@@ -405,6 +412,18 @@ button:disabled {
   font-weight: 700;
   color: var(--muted);
   flex-wrap: wrap;
+}
+
+.controls .status {
+  font-weight: 700;
+  color: #1f2937;
+  padding: 0 8px;
+  min-width: 96px;
+  text-align: center;
+}
+
+#zoom-status {
+  color: var(--accent-strong);
 }
 
 .badge {
