@@ -72,26 +72,10 @@ body {
 }
 
 .file-picker {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
-  background: #f8fafc;
-  width: 100%;
-}
-
-.file-picker label {
-  font-weight: 700;
-  color: #0f172a;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.file-picker input[type='file'] {
-  width: 100%;
-  font-size: 14px;
+  padding: 0 12px;
 }
 
 main {
@@ -334,6 +318,7 @@ main {
 .controls {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
@@ -345,19 +330,65 @@ main {
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
 }
 
+.controls-left,
+.controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .toolbar-group,
 .control-group {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+}
+
+.page-input-group {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 4px;
   background: #f8fafc;
+  border-radius: 8px;
+  padding: 4px 8px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+}
+
+.page-input-group input {
+  width: 56px;
+  border: none;
+  background: transparent;
+  font-weight: 800;
+  font-size: 14px;
+  color: #0f172a;
+  text-align: center;
+  outline: none;
+}
+
+.page-input-group input:disabled {
+  color: var(--muted);
+}
+
+.page-input-group span {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 button {
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   background: #ffffff;
   color: #111827;
   padding: 6px 8px;
@@ -417,9 +448,7 @@ button:disabled {
 .controls .status {
   font-weight: 700;
   color: #1f2937;
-  padding: 0 8px;
-  min-width: 96px;
-  text-align: center;
+  padding: 0 6px;
 }
 
 #zoom-status {
