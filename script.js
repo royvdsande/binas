@@ -52,7 +52,7 @@ let navigationData = [];
 let userProvidedDocument = false;
 let docKey = 'default';
 const minScale = 0.2;
-const maxScale = 6;
+const maxScale = 4;
 const scaleStep = 0.15;
 const annotations = new Map();
 const redoStacks = new Map();
@@ -66,6 +66,7 @@ const pageStorageKey = 'binas:last-page';
 const sidebarWidthKey = 'binas:sidebar-width';
 const sidebarCollapsedKey = 'binas:sidebar-collapsed';
 const annotationStoragePrefix = 'binas:annotations:';
+let wheelScrollBuffer = 0;
 
 const singlePageIcon = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -199,13 +200,21 @@ function restoreLastPageForDoc() {
   }
 }
 
+let renderCycle = 0;
+
 async function renderPages() {
   if (!pdfDoc) return;
 
+  const cycleId = ++renderCycle;
+
   if (fitMode === 'width') {
-    scale = await calculateFitWidthScale();
+    const nextScale = await calculateFitWidthScale();
+    if (cycleId !== renderCycle) return;
+    scale = nextScale;
   } else if (fitMode === 'height') {
-    scale = await calculateFitHeightScale();
+    const nextScale = await calculateFitHeightScale();
+    if (cycleId !== renderCycle) return;
+    scale = nextScale;
   }
 
   pageGrid.innerHTML = '';
@@ -217,6 +226,7 @@ async function renderPages() {
 
   for (const pageNumber of pagesToRender) {
     const page = await pdfDoc.getPage(pageNumber);
+    if (cycleId !== renderCycle) return;
     const viewport = page.getViewport({ scale });
     const outputScale = window.devicePixelRatio || 1;
     const displayWidth = viewport.width;
@@ -241,9 +251,6 @@ async function renderPages() {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'page-wrapper';
-    const label = document.createElement('span');
-    label.className = 'page-label';
-    label.textContent = `Pagina ${pageNumber}`;
     const textLayer = document.createElement('div');
     textLayer.className = 'text-layer';
     textLayer.style.width = `${displayWidth}px`;
@@ -251,10 +258,10 @@ async function renderPages() {
     wrapper.appendChild(canvas);
     wrapper.appendChild(textLayer);
     attachAnnotationLayer(wrapper, pageNumber, displayWidth, displayHeight, outputScale);
-    wrapper.appendChild(label);
     pageGrid.appendChild(wrapper);
 
     const textContent = await page.getTextContent();
+    if (cycleId !== renderCycle) return;
     await pdfjsLib.renderTextLayer({
       textContent,
       container: textLayer,
@@ -310,6 +317,7 @@ function changePage(direction) {
   const upperBound = isSpread && pdfDoc.numPages > 1 ? pdfDoc.numPages - 1 : pdfDoc.numPages;
   if (target > upperBound) target = upperBound;
   currentPage = target;
+  wheelScrollBuffer = 0;
   renderPages();
 }
 
@@ -922,6 +930,17 @@ viewerArea?.addEventListener(
       event.preventDefault();
       const delta = event.deltaY > 0 ? -scaleStep : scaleStep;
       changeZoom(delta);
+    } else {
+      wheelScrollBuffer += event.deltaY;
+      const threshold = 120;
+      while (wheelScrollBuffer <= -threshold) {
+        changePage(-1);
+        wheelScrollBuffer += threshold;
+      }
+      while (wheelScrollBuffer >= threshold) {
+        changePage(1);
+        wheelScrollBuffer -= threshold;
+      }
     }
   },
   { passive: false }
@@ -946,10 +965,7 @@ sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
 sidebarOverlay?.addEventListener('click', () => toggleSidebar(true));
 
 annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
-
 drawingToggleButton?.addEventListener('click', () => setDrawingEnabled(!isAnnotationEnabled));
-
-annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
 
 document.addEventListener('click', (event) => {
   if (!annotationMenu || !annotationMenuToggle) return;
