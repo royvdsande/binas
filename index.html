@@ -34,10 +34,16 @@
               </svg>
               <input id="nav-search" type="search" placeholder="Zoek op tabelnummer of titel" />
             </div>
-            <button id="toc-toggle" class="icon-button" aria-label="Open grote inhoudsopgave">
+            <button id="sidebar-maximize" class="icon-button" aria-label="Maak navigatie schermvullend">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="4" y="5" width="16" height="14" rx="2" />
-                <path d="M8 9h8M8 12h4M8 15h6" />
+                <path d="M5 9V5h4" />
+                <path d="M19 15v4h-4" />
+                <path d="M15 5h4v4" />
+                <path d="M9 19H5v-4" />
+                <path d="M9 9 5 5" />
+                <path d="m15 15 4 4" />
+                <path d="M19 5 15 9" />
+                <path d="M5 19l4-4" />
               </svg>
             </button>
           </div>
@@ -49,16 +55,27 @@
         </div>
       </div>
     </aside>
-    <button id="sidebar-toggle" class="sidebar-toggle-fab" aria-label="Klap navigatie in of uit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="m10 6 6 6-6 6" />
-      </svg>
-    </button>
     <div class="sidebar-resizer" id="sidebar-resizer" aria-hidden="true"></div>
 
     <div class="viewer">
       <header class="controls" aria-label="Viewer opties">
         <div class="controls-left">
+          <div class="control-group" role="group" aria-label="Paneel opties">
+            <button id="sidebar-toggle" aria-label="Klap navigatie in of uit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 6h12" />
+                <path d="M6 12h12" />
+                <path d="M6 18h12" />
+              </svg>
+            </button>
+            <button id="drawing-toggle-button" aria-label="Schakel tekenen" class="ghost">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m12 20 7-7-4-4-7 7-2 5z" />
+                <path d="M15 9 9 15" />
+              </svg>
+              <span class="button-label">Tekenen</span>
+            </button>
+          </div>
           <div class="control-group" role="group" aria-label="Zoom">
             <button id="zoom-out" aria-label="Uitzoomen">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -125,50 +142,6 @@
 
         <div class="controls-right">
           <div class="status no-select" id="zoom-status">Zoom: 100%</div>
-          <div class="annotation-menu-wrapper">
-            <button
-              id="annotation-menu-toggle"
-              class="icon-button annotation-toggle"
-              aria-expanded="false"
-              aria-controls="annotation-menu"
-              aria-label="Open tekentools"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m12 20 7-7-4-4-7 7-2 5z" />
-                <path d="M15 9 9 15" />
-              </svg>
-            </button>
-            <div class="annotation-menu" id="annotation-menu" hidden>
-              <div class="section-header">
-                <div>
-                  <p class="section-title">Tekenen</p>
-                  <p class="section-subtitle">Maak aantekeningen over de pagina</p>
-                </div>
-                <button id="drawing-toggle" class="chip-toggle" aria-pressed="false">Tekenen uit</button>
-              </div>
-              <div class="tool-row" role="group" aria-label="Tekentools">
-                <button class="tool-button primary" data-tool="pen" id="tool-pen">Pen</button>
-                <button class="tool-button" data-tool="highlighter" id="tool-highlighter">Markeer</button>
-                <button class="tool-button" data-tool="eraser" id="tool-eraser">Gum</button>
-              </div>
-              <div class="tool-row" role="group" aria-label="Acties">
-                <button class="tool-button" data-action="undo" id="tool-undo">Undo</button>
-                <button class="tool-button" data-action="redo" id="tool-redo">Redo</button>
-                <button class="tool-button" data-action="clear" id="tool-clear">Wis pagina</button>
-                <button class="tool-button" data-action="clear-all" id="tool-clear-all">Wis alles</button>
-              </div>
-              <div class="tool-row colors" role="group" aria-label="Kleuren">
-                <button class="color-swatch" data-color="#e11d48" style="--swatch:#e11d48"></button>
-                <button class="color-swatch" data-color="#0ea5e9" style="--swatch:#0ea5e9"></button>
-                <button class="color-swatch" data-color="#16a34a" style="--swatch:#16a34a"></button>
-                <button class="color-swatch" data-color="#f97316" style="--swatch:#f97316"></button>
-                <button class="color-swatch" data-color="#111827" style="--swatch:#111827"></button>
-              </div>
-              <label class="slider-row" for="stroke-size">Dikte
-                <input type="range" id="stroke-size" min="2" max="20" value="6" />
-              </label>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -185,36 +158,52 @@
         </div>
       </div>
     </div>
+    <aside class="annotation-panel" id="annotation-panel" aria-label="Tekentools" hidden>
+      <div class="sidebar-top annotation-top">
+        <div class="brand no-select" aria-label="Tekenen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m12 20 7-7-4-4-7 7-2 5z" />
+            <path d="M15 9 9 15" />
+          </svg>
+          <div class="text">
+            <p class="brand-title">Tekenen</p>
+            <p class="brand-subtitle">Aantekeningen per pagina</p>
+          </div>
+        </div>
+      </div>
+      <div class="annotation-body">
+        <div class="section-header">
+          <div>
+            <p class="section-title">Tekentools</p>
+            <p class="section-subtitle">Schakel tekenen met de knop bovenin</p>
+          </div>
+        </div>
+        <div class="tool-row" role="group" aria-label="Tekentools">
+          <button class="tool-button primary" data-tool="pen" id="tool-pen">Pen</button>
+          <button class="tool-button" data-tool="highlighter" id="tool-highlighter">Markeer</button>
+          <button class="tool-button" data-tool="eraser" id="tool-eraser">Gum</button>
+        </div>
+        <div class="tool-row" role="group" aria-label="Acties">
+          <button class="tool-button" data-action="undo" id="tool-undo">Undo</button>
+          <button class="tool-button" data-action="redo" id="tool-redo">Redo</button>
+          <button class="tool-button" data-action="clear" id="tool-clear">Wis pagina</button>
+          <button class="tool-button" data-action="clear-all" id="tool-clear-all">Wis alles</button>
+        </div>
+        <div class="tool-row colors" role="group" aria-label="Kleuren">
+          <button class="color-swatch" data-color="#e11d48" style="--swatch:#e11d48"></button>
+          <button class="color-swatch" data-color="#0ea5e9" style="--swatch:#0ea5e9"></button>
+          <button class="color-swatch" data-color="#16a34a" style="--swatch:#16a34a"></button>
+          <button class="color-swatch" data-color="#f97316" style="--swatch:#f97316"></button>
+          <button class="color-swatch" data-color="#111827" style="--swatch:#111827"></button>
+        </div>
+        <label class="slider-row" for="stroke-size">Dikte
+          <input type="range" id="stroke-size" min="2" max="20" value="6" />
+        </label>
+      </div>
+    </aside>
   </div>
 
   <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
-
-  <div class="toc-overlay" id="toc-overlay" aria-hidden="true">
-    <div class="toc-panel" role="dialog" aria-modal="true" aria-labelledby="toc-title">
-      <div class="toc-header">
-        <div class="toc-title-group">
-          <div class="toc-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
-              <path d="M8 8h8M8 12h5.5M8 16h4" />
-            </svg>
-          </div>
-          <div>
-            <p id="toc-title" class="toc-title">Inhoudsopgave</p>
-            <p class="toc-subtitle">Spring direct naar een tabel</p>
-          </div>
-        </div>
-        <button id="toc-close" class="icon-button" aria-label="Sluit grote inhoudsopgave">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 7l10 10M17 7 7 17" />
-          </svg>
-        </button>
-      </div>
-      <div class="toc-body">
-        <ul class="nav-list toc-list" id="toc-list" aria-live="polite"></ul>
-      </div>
-    </div>
-  </div>
 
   <script src="script.js"></script>
 </body>

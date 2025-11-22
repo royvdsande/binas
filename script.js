@@ -9,10 +9,6 @@ const loadingMessage = document.getElementById('loading-message');
 const manualImportButton = document.getElementById('manual-import');
 const navList = document.getElementById('nav-list');
 const navSearch = document.getElementById('nav-search');
-const tocToggleBtn = document.getElementById('toc-toggle');
-const tocOverlay = document.getElementById('toc-overlay');
-const tocCloseBtn = document.getElementById('toc-close');
-const tocList = document.getElementById('toc-list');
 
 const prevBtn = document.getElementById('prev-page');
 const nextBtn = document.getElementById('next-page');
@@ -31,9 +27,9 @@ const layout = document.querySelector('.layout');
 const sidebar = document.querySelector('.sidebar');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle');
 const sidebarResizer = document.getElementById('sidebar-resizer');
-const annotationMenuToggle = document.getElementById('annotation-menu-toggle');
-const annotationMenu = document.getElementById('annotation-menu');
-const drawingToggleButton = document.getElementById('drawing-toggle');
+const sidebarMaximizeBtn = document.getElementById('sidebar-maximize');
+const drawingToggleButton = document.getElementById('drawing-toggle-button');
+const annotationPanel = document.getElementById('annotation-panel');
 const strokeSizeInput = document.getElementById('stroke-size');
 const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
 const undoButton = document.getElementById('tool-undo');
@@ -61,12 +57,14 @@ let currentTool = 'pen';
 let currentColor = '#e11d48';
 let currentStrokeSize = Number.parseInt(strokeSizeInput?.value || '6', 10);
 const sidebarMinWidth = 220;
-const sidebarMaxWidth = 520;
+const sidebarMaxWidth = 1200;
+const annotationWidth = 360;
 const pageStorageKey = 'binas:last-page';
 const sidebarWidthKey = 'binas:sidebar-width';
 const sidebarCollapsedKey = 'binas:sidebar-collapsed';
 const annotationStoragePrefix = 'binas:annotations:';
-let wheelScrollBuffer = 0;
+
+document.documentElement.style.setProperty('--annotation-width', `${annotationWidth}px`);
 
 const singlePageIcon = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -175,7 +173,6 @@ function updateButtons() {
   fitWidthBtn.disabled = !hasDoc;
   resetZoomBtn.disabled = !hasDoc || (!fitMode && scale === 1);
   toggleViewBtn.disabled = !hasDoc;
-  annotationMenuToggle?.toggleAttribute('disabled', !hasDoc);
   drawingToggleButton?.toggleAttribute('disabled', !hasDoc);
   updateToggleButtonVisual();
 }
@@ -217,12 +214,12 @@ async function renderPages() {
     scale = nextScale;
   }
 
-  pageGrid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
   const pagesToRender = isSpread
     ? [currentPage, currentPage + 1].filter((pageNumber) => pageNumber && pageNumber <= pdfDoc.numPages)
     : [currentPage];
 
-  pageGrid.classList.toggle('spread', isSpread && pagesToRender.length > 1);
+  const shouldSpread = isSpread && pagesToRender.length > 1;
 
   for (const pageNumber of pagesToRender) {
     const page = await pdfDoc.getPage(pageNumber);
@@ -251,30 +248,24 @@ async function renderPages() {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'page-wrapper';
-    const textLayer = document.createElement('div');
-    textLayer.className = 'text-layer';
-    textLayer.style.width = `${displayWidth}px`;
-    textLayer.style.height = `${displayHeight}px`;
     wrapper.appendChild(canvas);
-    wrapper.appendChild(textLayer);
     attachAnnotationLayer(wrapper, pageNumber, displayWidth, displayHeight, outputScale);
-    pageGrid.appendChild(wrapper);
-
-    const textContent = await page.getTextContent();
-    if (cycleId !== renderCycle) return;
-    await pdfjsLib.renderTextLayer({
-      textContent,
-      container: textLayer,
-      viewport,
-      textDivs: [],
-    }).promise;
+    fragment.appendChild(wrapper);
   }
 
-  updatePageStatus();
-  updateZoomStatus();
-  updateButtons();
-  persistCurrentPage();
-  refreshAnnotationInteractivity();
+  if (cycleId !== renderCycle) return;
+
+  pageGrid.classList.add('rendering');
+  requestAnimationFrame(() => {
+    pageGrid.classList.toggle('spread', shouldSpread);
+    pageGrid.replaceChildren(...fragment.childNodes);
+    pageGrid.classList.remove('rendering');
+    updatePageStatus();
+    updateZoomStatus();
+    updateButtons();
+    persistCurrentPage();
+    refreshAnnotationInteractivity();
+  });
 }
 
 function clampZoom(newScale) {
@@ -317,7 +308,6 @@ function changePage(direction) {
   const upperBound = isSpread && pdfDoc.numPages > 1 ? pdfDoc.numPages - 1 : pdfDoc.numPages;
   if (target > upperBound) target = upperBound;
   currentPage = target;
-  wheelScrollBuffer = 0;
   renderPages();
 }
 
@@ -334,6 +324,7 @@ function goToPage(targetPage) {
 function setSidebarWidth(width) {
   const clamped = Math.min(sidebarMaxWidth, Math.max(sidebarMinWidth, width));
   document.documentElement.style.setProperty('--sidebar-width', `${clamped}px`);
+  sidebar?.classList.toggle('wide', clamped >= 640);
   localStorage.setItem(sidebarWidthKey, clamped);
 }
 
@@ -342,10 +333,21 @@ function loadSidebarPreferences() {
   if (!Number.isNaN(storedWidth) && storedWidth >= sidebarMinWidth) {
     setSidebarWidth(storedWidth);
   }
+  const currentWidth = Number.parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),
+    10
+  );
+  sidebar?.classList.toggle('wide', currentWidth >= 640);
   const collapsed = localStorage.getItem(sidebarCollapsedKey) === 'true';
   layout?.classList.toggle('sidebar-collapsed', collapsed);
   updateSidebarToggleLabel();
   updateSidebarOverlay();
+}
+
+function maximizeSidebar() {
+  const targetWidth = Math.min(sidebarMaxWidth, Math.max(sidebarMinWidth, window.innerWidth - 80));
+  toggleSidebar(false);
+  setSidebarWidth(targetWidth);
 }
 
 function toggleSidebar(forceState) {
@@ -577,38 +579,22 @@ function refreshAnnotationInteractivity() {
 }
 
 function updateDrawingUiState() {
-  annotationMenuToggle?.classList.toggle('active', isAnnotationEnabled);
-  annotationMenuToggle?.classList.toggle('primary', isAnnotationEnabled);
-  annotationMenuToggle?.setAttribute('aria-pressed', isAnnotationEnabled ? 'true' : 'false');
-  annotationMenuToggle?.setAttribute('aria-label', isAnnotationEnabled ? 'Tekenen actief' : 'Open tekentools');
-  if (drawingToggleButton) {
-    drawingToggleButton.setAttribute('aria-pressed', isAnnotationEnabled ? 'true' : 'false');
-    drawingToggleButton.textContent = isAnnotationEnabled ? 'Tekenen aan' : 'Tekenen uit';
+  drawingToggleButton?.classList.toggle('active', isAnnotationEnabled);
+  drawingToggleButton?.classList.toggle('primary', isAnnotationEnabled);
+  drawingToggleButton?.setAttribute('aria-pressed', isAnnotationEnabled ? 'true' : 'false');
+  if (drawingToggleButton?.querySelector('.button-label')) {
+    drawingToggleButton.querySelector('.button-label').textContent = isAnnotationEnabled ? 'Tekenen aan' : 'Tekenen';
   }
+  if (annotationPanel) {
+    annotationPanel.hidden = !isAnnotationEnabled;
+  }
+  layout?.classList.toggle('annotation-open', isAnnotationEnabled);
 }
 
 function setDrawingEnabled(enabled) {
   isAnnotationEnabled = Boolean(enabled);
   refreshAnnotationInteractivity();
   updateDrawingUiState();
-}
-
-function closeAnnotationMenu() {
-  if (!annotationMenu || !annotationMenuToggle) return;
-  annotationMenu.hidden = true;
-  annotationMenu.classList.remove('open');
-  annotationMenuToggle.setAttribute('aria-expanded', 'false');
-}
-
-function toggleAnnotationMenu() {
-  if (!annotationMenu || !annotationMenuToggle) return;
-  const willOpen = annotationMenu.hidden;
-  annotationMenu.hidden = !willOpen;
-  annotationMenu.classList.toggle('open', willOpen);
-  annotationMenuToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-  if (willOpen) {
-    updateDrawingUiState();
-  }
 }
 
 function setActiveTool(tool) {
@@ -856,7 +842,6 @@ async function loadNavigationData() {
   if (!navList) return;
 
   renderNavigation('', navList);
-  renderNavigation('', tocList, { onSelect: closeTocOverlay });
 
   try {
     const response = await fetch('navigation-data.json');
@@ -866,34 +851,15 @@ async function loadNavigationData() {
 
     navigationData = await response.json();
     renderNavigation(navSearch?.value || '', navList);
-    renderNavigation(navSearch?.value || '', tocList, { onSelect: closeTocOverlay });
   } catch (error) {
     console.error(error);
     navList.innerHTML = '';
-    tocList.innerHTML = '';
     const errorItem = document.createElement('li');
     errorItem.textContent = 'Navigatie kon niet worden geladen.';
     errorItem.style.padding = '12px';
     errorItem.style.color = 'var(--muted)';
     navList.appendChild(errorItem);
-    const errorItemOverlay = errorItem.cloneNode(true);
-    tocList.appendChild(errorItemOverlay);
   }
-}
-
-function openTocOverlay() {
-  if (!tocOverlay) return;
-  tocOverlay.classList.add('visible');
-  tocOverlay.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('toc-open');
-  renderNavigation(navSearch?.value || '', tocList, { onSelect: closeTocOverlay });
-}
-
-function closeTocOverlay() {
-  if (!tocOverlay) return;
-  tocOverlay.classList.remove('visible');
-  tocOverlay.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('toc-open');
 }
 
 fileInput.addEventListener('change', (event) => {
@@ -930,17 +896,6 @@ viewerArea?.addEventListener(
       event.preventDefault();
       const delta = event.deltaY > 0 ? -scaleStep : scaleStep;
       changeZoom(delta);
-    } else {
-      wheelScrollBuffer += event.deltaY;
-      const threshold = 120;
-      while (wheelScrollBuffer <= -threshold) {
-        changePage(-1);
-        wheelScrollBuffer += threshold;
-      }
-      while (wheelScrollBuffer >= threshold) {
-        changePage(1);
-        wheelScrollBuffer -= threshold;
-      }
     }
   },
   { passive: false }
@@ -948,33 +903,14 @@ viewerArea?.addEventListener(
 
 navSearch?.addEventListener('input', (event) => {
   renderNavigation(event.target.value, navList);
-  renderNavigation(event.target.value, tocList, { onSelect: closeTocOverlay });
-});
-
-tocToggleBtn?.addEventListener('click', openTocOverlay);
-tocCloseBtn?.addEventListener('click', closeTocOverlay);
-
-tocOverlay?.addEventListener('click', (event) => {
-  if (event.target === tocOverlay) {
-    closeTocOverlay();
-  }
 });
 
 sidebarToggleBtn?.addEventListener('click', () => toggleSidebar());
+sidebarMaximizeBtn?.addEventListener('click', () => maximizeSidebar());
 sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
 sidebarOverlay?.addEventListener('click', () => toggleSidebar(true));
 
-annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
 drawingToggleButton?.addEventListener('click', () => setDrawingEnabled(!isAnnotationEnabled));
-
-document.addEventListener('click', (event) => {
-  if (!annotationMenu || !annotationMenuToggle) return;
-  const target = event.target;
-  if (!(target instanceof Node)) return;
-  if (annotationMenu.hidden) return;
-  if (annotationMenu.contains(target) || annotationMenuToggle.contains(target)) return;
-  closeAnnotationMenu();
-});
 
 toolButtons.forEach((button) => {
   button.addEventListener('click', () => {
@@ -999,13 +935,8 @@ clearButton?.addEventListener('click', () => clearPageAnnotations());
 clearAllButton?.addEventListener('click', () => clearAllAnnotations());
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    if (tocOverlay?.classList.contains('visible')) {
-      closeTocOverlay();
-    }
-    if (!annotationMenu?.hidden) {
-      closeAnnotationMenu();
-    }
+  if (event.key === 'Escape' && isAnnotationEnabled) {
+    setDrawingEnabled(false);
   }
 });
 
