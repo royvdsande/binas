@@ -741,45 +741,31 @@ body.toc-open {
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 
-.floating-panel {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
+.annotation-menu-wrapper {
+  position: relative;
+}
+
+.annotation-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
   background: #ffffff;
-  border: 1px solid #dbe2ef;
-  border-radius: 14px;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
-  width: min(440px, 100vw - 24px);
-  z-index: 11;
-  overflow: hidden;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.panel-title {
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.panel-body {
-  padding: 12px 14px 14px;
-  display: grid;
-  gap: 12px;
-}
-
-.tool-section {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.16);
   padding: 12px;
-  background: #f8fafc;
-  display: grid;
+  display: none;
+  width: min(440px, 90vw);
+  z-index: 5;
   gap: 10px;
+}
+
+.annotation-menu.open {
+  display: grid;
+}
+
+.annotation-menu-wrapper > button {
+  min-width: 120px;
 }
 
 .section-header {
@@ -895,41 +881,6 @@ body.toc-open {
   transform: translateX(22px);
 }
 
-.calculator {
-  display: grid;
-  gap: 8px;
-}
-
-.calc-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-}
-
-.calc-row.quick-buttons {
-  grid-template-columns: repeat(auto-fit, minmax(46px, 1fr));
-}
-
-.calc-row input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  font-size: 14px;
-}
-
-.calc-output {
-  background: #0f172a;
-  color: #e0e7ff;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-weight: 700;
-  min-height: 42px;
-}
-
-.panel-collapsed .panel-body {
-  display: none;
-}
-
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 0px 0px 1fr;
@@ -945,6 +896,50 @@ body.toc-open {
 
   .sidebar-resizer {
     display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .controls {
+    align-items: flex-start;
+    gap: 8px 10px;
+  }
+
+  .controls-left,
+  .controls-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .control-group {
+    flex-wrap: wrap;
+  }
+
+  .page-input-group input {
+    width: 48px;
+  }
+
+  .viewer-area {
+    padding: 0 6px 12px;
+  }
+
+  .page-grid {
+    padding: 12px 8px;
+    gap: 12px;
+  }
+
+  .annotation-menu {
+    position: fixed;
+    top: 72px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  .annotation-menu-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
   }
 }
 
