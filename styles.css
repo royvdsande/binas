@@ -28,6 +28,10 @@ body {
   min-height: 100vh;
 }
 
+body.sidebar-open {
+  overflow: hidden;
+}
+
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-width) 10px 1fr;
@@ -125,6 +129,21 @@ main {
   top: 12px;
   z-index: 12;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.2);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 11;
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
 }
 
 .sidebar-top {
@@ -743,6 +762,36 @@ body.toc-open {
 
 .annotation-menu-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  padding: 4px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  gap: 6px;
+  margin-right: 10px;
+}
+
+.mode-button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 800;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.mode-button.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
 }
 
 .annotation-menu {
@@ -896,6 +945,10 @@ body.toc-open {
 
   .sidebar-resizer {
     display: none;
+  }
+
+  .sidebar-overlay {
+    display: block;
   }
 }
 

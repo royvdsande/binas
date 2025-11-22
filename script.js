@@ -31,14 +31,15 @@ const layout = document.querySelector('.layout');
 const sidebar = document.querySelector('.sidebar');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle');
 const sidebarResizer = document.getElementById('sidebar-resizer');
-const annotationToggle = document.getElementById('annotation-toggle');
 const annotationMenuToggle = document.getElementById('annotation-menu-toggle');
 const annotationMenu = document.getElementById('annotation-menu');
+const modeButtons = Array.from(document.querySelectorAll('.mode-button[data-mode]'));
 const strokeSizeInput = document.getElementById('stroke-size');
 const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
 const undoButton = document.getElementById('tool-undo');
 const clearButton = document.getElementById('tool-clear');
 const colorSwatches = Array.from(document.querySelectorAll('.color-swatch'));
+const sidebarOverlay = document.getElementById('sidebar-overlay');
 
 let pdfDoc = null;
 let currentPage = 1;
@@ -52,7 +53,8 @@ const minScale = 0.2;
 const maxScale = 6;
 const scaleStep = 0.15;
 const annotations = new Map();
-let isAnnotationEnabled = true;
+let isAnnotationEnabled = false;
+let currentMode = 'normal';
 let currentTool = 'pen';
 let currentColor = '#e11d48';
 let currentStrokeSize = Number.parseInt(strokeSizeInput?.value || '6', 10);
@@ -310,6 +312,7 @@ function loadSidebarPreferences() {
   const collapsed = localStorage.getItem(sidebarCollapsedKey) === 'true';
   layout?.classList.toggle('sidebar-collapsed', collapsed);
   updateSidebarToggleLabel();
+  updateSidebarOverlay();
 }
 
 function toggleSidebar(forceState) {
@@ -317,12 +320,22 @@ function toggleSidebar(forceState) {
   layout?.classList.toggle('sidebar-collapsed', nextState);
   localStorage.setItem(sidebarCollapsedKey, nextState);
   updateSidebarToggleLabel();
+  updateSidebarOverlay();
 }
 
 function updateSidebarToggleLabel() {
   if (!sidebarToggleBtn) return;
   const collapsed = layout?.classList.contains('sidebar-collapsed');
   sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Open navigatie' : 'Klap navigatie in');
+}
+
+function updateSidebarOverlay() {
+  if (!sidebarOverlay) return;
+  const collapsed = layout?.classList.contains('sidebar-collapsed');
+  const active = !collapsed && window.innerWidth < 900;
+  sidebarOverlay.classList.toggle('visible', active);
+  sidebarOverlay.setAttribute('aria-hidden', active ? 'false' : 'true');
+  document.body.classList.toggle('sidebar-open', active);
 }
 
 function startSidebarResize(event) {
@@ -515,6 +528,30 @@ function refreshAnnotationInteractivity() {
   });
 }
 
+function updateModeButtons() {
+  modeButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.mode === currentMode);
+  });
+  annotationMenuToggle?.toggleAttribute('disabled', currentMode !== 'draw');
+  annotationMenuToggle?.classList.toggle('primary', currentMode === 'draw');
+  annotationMenuToggle?.setAttribute(
+    'aria-label',
+    currentMode === 'draw' ? 'Open tekentools' : 'Tekentools beschikbaar in tekenmodus'
+  );
+}
+
+function setMode(nextMode) {
+  if (!['normal', 'draw'].includes(nextMode)) return;
+  const modeChanged = currentMode !== nextMode;
+  currentMode = nextMode;
+  isAnnotationEnabled = currentMode === 'draw';
+  refreshAnnotationInteractivity();
+  updateModeButtons();
+  if (modeChanged && currentMode !== 'draw') {
+    closeAnnotationMenu();
+  }
+}
+
 function closeAnnotationMenu() {
   if (!annotationMenu || !annotationMenuToggle) return;
   annotationMenu.hidden = true;
@@ -524,6 +561,7 @@ function closeAnnotationMenu() {
 
 function toggleAnnotationMenu() {
   if (!annotationMenu || !annotationMenuToggle) return;
+  if (currentMode !== 'draw') return;
   const willOpen = annotationMenu.hidden;
   annotationMenu.hidden = !willOpen;
   annotationMenu.classList.toggle('open', willOpen);
@@ -843,6 +881,17 @@ tocOverlay?.addEventListener('click', (event) => {
 
 sidebarToggleBtn?.addEventListener('click', () => toggleSidebar());
 sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
+sidebarOverlay?.addEventListener('click', () => toggleSidebar(true));
+
+modeButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const activatingDraw = button.dataset.mode === 'draw' && currentMode !== 'draw';
+    setMode(button.dataset.mode);
+    if (activatingDraw) {
+      toggleAnnotationMenu();
+    }
+  });
+});
 
 annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
 
@@ -853,11 +902,6 @@ document.addEventListener('click', (event) => {
   if (annotationMenu.hidden) return;
   if (annotationMenu.contains(target) || annotationMenuToggle.contains(target)) return;
   closeAnnotationMenu();
-});
-
-annotationToggle?.addEventListener('change', (event) => {
-  isAnnotationEnabled = event.target.checked;
-  refreshAnnotationInteractivity();
 });
 
 toolButtons.forEach((button) => {
@@ -896,6 +940,7 @@ pageInput?.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('resize', () => {
+  updateSidebarOverlay();
   if (!pdfDoc || !fitMode) return;
   renderPages();
 });
@@ -904,12 +949,9 @@ loadSidebarPreferences();
 if (window.innerWidth < 900 && localStorage.getItem(sidebarCollapsedKey) === null) {
   toggleSidebar(true);
 }
+setMode(currentMode);
 setActiveTool(currentTool);
 setActiveColor(currentColor);
-if (annotationToggle) {
-  annotationToggle.checked = isAnnotationEnabled;
-}
-refreshAnnotationInteractivity();
 
 loadDefaultPdf();
 loadNavigationData();
