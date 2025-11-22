@@ -14,14 +14,14 @@ const prevBtn = document.getElementById('prev-page');
 const nextBtn = document.getElementById('next-page');
 const zoomInBtn = document.getElementById('zoom-in');
 const zoomOutBtn = document.getElementById('zoom-out');
-const fitHeightBtn = document.getElementById('fit-height');
-const fitWidthBtn = document.getElementById('fit-width');
-const resetZoomBtn = document.getElementById('reset-zoom');
+const zoomInput = document.getElementById('zoom-input');
+const fitModeBtn = document.getElementById('fit-mode');
+const rotateViewBtn = document.getElementById('rotate-view');
+const downloadPagesBtn = document.getElementById('download-pages');
 const toggleViewBtn = document.getElementById('toggle-view');
 const pageStatus = document.getElementById('page-status');
 const pageInput = document.getElementById('page-input');
 const pageTotal = document.getElementById('page-total');
-const zoomStatus = document.getElementById('zoom-status');
 const viewerArea = document.querySelector('.viewer-area');
 const layout = document.querySelector('.layout');
 const sidebar = document.querySelector('.sidebar');
@@ -30,6 +30,7 @@ const sidebarResizer = document.getElementById('sidebar-resizer');
 const sidebarMaximizeBtn = document.getElementById('sidebar-maximize');
 const drawingToggleButton = document.getElementById('drawing-toggle-button');
 const annotationPanel = document.getElementById('annotation-panel');
+const closeAnnotationBtn = document.getElementById('close-annotation');
 const strokeSizeInput = document.getElementById('stroke-size');
 const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
 const undoButton = document.getElementById('tool-undo');
@@ -44,6 +45,7 @@ let currentPage = 1;
 let scale = 1;
 let isSpread = false;
 let fitMode = null;
+let rotation = 0;
 let navigationData = [];
 let userProvidedDocument = false;
 let docKey = 'default';
@@ -63,6 +65,8 @@ const pageStorageKey = 'binas:last-page';
 const sidebarWidthKey = 'binas:sidebar-width';
 const sidebarCollapsedKey = 'binas:sidebar-collapsed';
 const annotationStoragePrefix = 'binas:annotations:';
+let defaultSidebarWidth = 0;
+let previousSidebarWidth = null;
 
 document.documentElement.style.setProperty('--annotation-width', `${annotationWidth}px`);
 
@@ -82,6 +86,18 @@ const spreadIcon = `
     <path d="M15.75 13h-5" />
   </svg>
 `;
+
+const fitCombinedIcon = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="4" width="16" height="16" rx="3" />
+    <path d="M9 12h6" />
+    <path d="M12 9v6" />
+    <path d="M8 12H6.75" />
+    <path d="M17.25 12H16" />
+    <path d="M12 8V6.75" />
+    <path d="M12 17.25V16" />
+  </svg>
+`;
 function getGridMetrics() {
   const styles = getComputedStyle(pageGrid);
   const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
@@ -93,7 +109,7 @@ function getGridMetrics() {
 async function calculateFitWidthScale() {
   if (!pdfDoc || !viewerArea) return scale;
   const page = await pdfDoc.getPage(currentPage);
-  const viewport = page.getViewport({ scale: 1 });
+  const viewport = page.getViewport({ scale: 1, rotation });
   const { paddingX, gap } = getGridMetrics();
   const columns = isSpread ? 2 : 1;
   const availableWidth = Math.max(120, viewerArea.clientWidth - paddingX - gap * (columns - 1));
@@ -104,7 +120,7 @@ async function calculateFitWidthScale() {
 async function calculateFitHeightScale() {
   if (!pdfDoc || !viewerArea) return scale;
   const page = await pdfDoc.getPage(currentPage);
-  const viewport = page.getViewport({ scale: 1 });
+  const viewport = page.getViewport({ scale: 1, rotation });
   const { paddingY } = getGridMetrics();
   const availableHeight = Math.max(120, viewerArea.clientHeight - paddingY);
   return clampZoom(availableHeight / viewport.height);
@@ -152,14 +168,17 @@ function updatePageStatus() {
 }
 
 function updateZoomStatus() {
-  zoomStatus.textContent = `Zoom: ${(scale * 100).toFixed(0)}%`;
+  if (!zoomInput) return;
+  zoomInput.value = (scale * 100).toFixed(0);
+  zoomInput.disabled = !pdfDoc;
 }
 
 function updateToggleButtonVisual() {
   if (!toggleViewBtn) return;
   toggleViewBtn.classList.toggle('primary', isSpread);
-  const label = isSpread ? "2 pagina's" : '1 pagina';
-  toggleViewBtn.innerHTML = `${isSpread ? spreadIcon : singlePageIcon}<span>${label}</span>`;
+  const label = isSpread ? "Schakel naar enkele pagina" : 'Schakel naar dubbele pagina';
+  toggleViewBtn.innerHTML = isSpread ? spreadIcon : singlePageIcon;
+  toggleViewBtn.setAttribute('aria-label', label);
 }
 
 function updateButtons() {
@@ -169,12 +188,54 @@ function updateButtons() {
   nextBtn.disabled = !hasDoc || currentPage >= maxForNext;
   zoomInBtn.disabled = !hasDoc || scale >= maxScale;
   zoomOutBtn.disabled = !hasDoc || scale <= minScale;
-  fitHeightBtn.disabled = !hasDoc;
-  fitWidthBtn.disabled = !hasDoc;
-  resetZoomBtn.disabled = !hasDoc || (!fitMode && scale === 1);
+  zoomInput?.toggleAttribute('disabled', !hasDoc);
+  fitModeBtn?.toggleAttribute('disabled', !hasDoc);
+  rotateViewBtn?.toggleAttribute('disabled', !hasDoc);
+  downloadPagesBtn?.toggleAttribute('disabled', !hasDoc);
   toggleViewBtn.disabled = !hasDoc;
   drawingToggleButton?.toggleAttribute('disabled', !hasDoc);
   updateToggleButtonVisual();
+}
+
+function normalizeRotation(value) {
+  const normalized = ((value % 360) + 360) % 360;
+  if (normalized === 0 || normalized === 90 || normalized === 180 || normalized === 270) {
+    return normalized;
+  }
+  return Math.round(normalized / 90) * 90;
+}
+
+function convertViewPointToCanonical(point) {
+  const currentRotation = normalizeRotation(rotation);
+  if (currentRotation === 90) {
+    return { x: point.y, y: 1 - point.x };
+  }
+  if (currentRotation === 180) {
+    return { x: 1 - point.x, y: 1 - point.y };
+  }
+  if (currentRotation === 270) {
+    return { x: 1 - point.y, y: point.x };
+  }
+  return point;
+}
+
+function convertCanonicalToView(point) {
+  const currentRotation = normalizeRotation(rotation);
+  if (currentRotation === 90) {
+    return { x: 1 - point.y, y: point.x };
+  }
+  if (currentRotation === 180) {
+    return { x: 1 - point.x, y: 1 - point.y };
+  }
+  if (currentRotation === 270) {
+    return { x: point.y, y: 1 - point.x };
+  }
+  return point;
+}
+
+function projectPointToCanvas(point, canvas) {
+  const viewPoint = convertCanonicalToView(point);
+  return { x: viewPoint.x * canvas.width, y: viewPoint.y * canvas.height };
 }
 
 function getDocKey() {
@@ -224,7 +285,7 @@ async function renderPages() {
   for (const pageNumber of pagesToRender) {
     const page = await pdfDoc.getPage(pageNumber);
     if (cycleId !== renderCycle) return;
-    const viewport = page.getViewport({ scale });
+    const viewport = page.getViewport({ scale, rotation });
     const outputScale = window.devicePixelRatio || 1;
     const displayWidth = viewport.width;
     const displayHeight = viewport.height;
@@ -262,6 +323,7 @@ async function renderPages() {
     pageGrid.classList.remove('rendering');
     updatePageStatus();
     updateZoomStatus();
+    updateFitModeButton();
     updateButtons();
     persistCurrentPage();
     refreshAnnotationInteractivity();
@@ -279,25 +341,95 @@ function changeZoom(delta) {
   renderPages();
 }
 
-async function setZoomToFitWidth() {
-  if (!pdfDoc || !viewerArea) return;
-  fitMode = 'width';
-  scale = await calculateFitWidthScale();
+function updateFitModeButton() {
+  if (!fitModeBtn) return;
+  const badge = fitMode === 'width' ? 'B' : fitMode === 'height' ? 'H' : '–';
+  const label =
+    fitMode === 'width'
+      ? 'Pas weergave aan op breedte'
+      : fitMode === 'height'
+      ? 'Pas weergave aan op hoogte'
+      : 'Geen automatische aanpassing';
+  fitModeBtn.innerHTML = `${fitCombinedIcon}<span class="fit-badge">${badge}</span>`;
+  fitModeBtn.classList.toggle('primary', Boolean(fitMode));
+  fitModeBtn.setAttribute('data-mode', fitMode || 'none');
+  fitModeBtn.setAttribute('aria-label', label);
+}
+
+async function applyFitMode(mode) {
+  if (!pdfDoc || !viewerArea) {
+    fitMode = mode;
+    updateFitModeButton();
+    return;
+  }
+  fitMode = mode;
+  if (mode === 'width') {
+    scale = await calculateFitWidthScale();
+  } else if (mode === 'height') {
+    scale = await calculateFitHeightScale();
+  }
   renderPages();
+}
+
+async function setZoomToFitWidth() {
+  await applyFitMode('width');
 }
 
 async function setZoomToFitHeight() {
-  if (!pdfDoc || !viewerArea) return;
-  fitMode = 'height';
-  scale = await calculateFitHeightScale();
+  await applyFitMode('height');
+}
+
+function cycleFitMode() {
+  const nextMode = fitMode === 'width' ? 'height' : fitMode === 'height' ? null : 'width';
+  applyFitMode(nextMode);
+}
+
+function rotateView() {
+  if (!pdfDoc) return;
+  rotation = normalizeRotation(rotation + 90);
   renderPages();
 }
 
-function resetZoom() {
-  if (!pdfDoc) return;
-  fitMode = null;
-  scale = 1;
-  renderPages();
+function downloadVisiblePages() {
+  if (!pdfDoc || !pageGrid) return;
+  const wrappers = Array.from(pageGrid.querySelectorAll('.page-wrapper'));
+  const canvases = wrappers
+    .map((wrapper) => ({
+      page: wrapper.querySelector('.page-canvas'),
+      annotations: wrapper.querySelector('.annotation-layer'),
+    }))
+    .filter((entry) => entry.page);
+
+  if (!canvases.length) return;
+
+  const gap = canvases.length > 1 ? 24 : 0;
+  const totalWidth = canvases.reduce(
+    (acc, entry, index) => acc + entry.page.width + (index === canvases.length - 1 ? 0 : gap),
+    0
+  );
+  const maxHeight = Math.max(...canvases.map((entry) => entry.page.height));
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = totalWidth;
+  exportCanvas.height = maxHeight;
+  const ctx = exportCanvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+  let offsetX = 0;
+  canvases.forEach((entry, index) => {
+    ctx.drawImage(entry.page, offsetX, 0, entry.page.width, entry.page.height);
+    if (entry.annotations) {
+      ctx.drawImage(entry.annotations, offsetX, 0, entry.annotations.width, entry.annotations.height);
+    }
+    offsetX += entry.page.width + (index === canvases.length - 1 ? 0 : gap);
+  });
+
+  const endPage = Math.min(currentPage + (isSpread ? canvases.length - 1 : 0), pdfDoc.numPages);
+  const rangeLabel = endPage === currentPage ? `${currentPage}` : `${currentPage}-${endPage}`;
+  const link = document.createElement('a');
+  link.href = exportCanvas.toDataURL('image/png');
+  link.download = `binas-pagina-${rangeLabel}.png`;
+  link.click();
 }
 
 function changePage(direction) {
@@ -326,6 +458,10 @@ function setSidebarWidth(width) {
   document.documentElement.style.setProperty('--sidebar-width', `${clamped}px`);
   sidebar?.classList.toggle('wide', clamped >= 640);
   localStorage.setItem(sidebarWidthKey, clamped);
+  if (!defaultSidebarWidth) {
+    defaultSidebarWidth = clamped;
+  }
+  updateSidebarSizeButton();
 }
 
 function loadSidebarPreferences() {
@@ -337,17 +473,66 @@ function loadSidebarPreferences() {
     getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),
     10
   );
+  if (!defaultSidebarWidth) {
+    defaultSidebarWidth = currentWidth;
+  }
   sidebar?.classList.toggle('wide', currentWidth >= 640);
   const collapsed = localStorage.getItem(sidebarCollapsedKey) === 'true';
   layout?.classList.toggle('sidebar-collapsed', collapsed);
   updateSidebarToggleLabel();
   updateSidebarOverlay();
+  updateSidebarSizeButton();
 }
 
-function maximizeSidebar() {
-  const targetWidth = Math.min(sidebarMaxWidth, Math.max(sidebarMinWidth, window.innerWidth - 80));
-  toggleSidebar(false);
-  setSidebarWidth(targetWidth);
+const expandSidebarIcon = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5 9V5h4" />
+    <path d="M19 15v4h-4" />
+    <path d="M15 5h4v4" />
+    <path d="M9 19H5v-4" />
+    <path d="M9 9 5 5" />
+    <path d="m15 15 4 4" />
+    <path d="M19 5 15 9" />
+    <path d="M5 19l4-4" />
+  </svg>
+`;
+
+const collapseSidebarIcon = `
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M9 9V5H5" />
+    <path d="M15 15v4h4" />
+    <path d="M19 9V5h-4" />
+    <path d="M5 15v4h4" />
+    <path d="M9 5 5 9" />
+    <path d="m15 19 4-4" />
+    <path d="M19 9 15 5" />
+    <path d="M5 15l4 4" />
+  </svg>
+`;
+
+function updateSidebarSizeButton() {
+  if (!sidebarMaximizeBtn) return;
+  const isWide = sidebar?.classList.contains('wide');
+  sidebarMaximizeBtn.innerHTML = isWide ? collapseSidebarIcon : expandSidebarIcon;
+  sidebarMaximizeBtn.setAttribute('aria-label', isWide ? 'Maak navigatie smaller' : 'Vergroot navigatie');
+}
+
+function toggleSidebarSize() {
+  const currentWidth = Number.parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),
+    10
+  );
+  const isWide = sidebar?.classList.contains('wide');
+  if (isWide) {
+    const target = previousSidebarWidth || defaultSidebarWidth || sidebarMinWidth;
+    setSidebarWidth(target);
+  } else {
+    previousSidebarWidth = currentWidth;
+    const targetWidth = Math.min(sidebarMaxWidth, Math.max(sidebarMinWidth, window.innerWidth - 80));
+    setSidebarWidth(targetWidth);
+    toggleSidebar(false);
+  }
+  updateSidebarSizeButton();
 }
 
 function toggleSidebar(forceState) {
@@ -449,10 +634,7 @@ function applyStrokeStyle(ctx, stroke) {
 function drawStroke(ctx, stroke, canvas) {
   if (!stroke?.points?.length) return;
   applyStrokeStyle(ctx, stroke);
-  const points = stroke.points.map((point) => ({
-    x: point.x * canvas.width,
-    y: point.y * canvas.height,
-  }));
+  const points = stroke.points.map((point) => projectPointToCanvas(point, canvas));
   ctx.beginPath();
   ctx.moveTo(points[0].x, points[0].y);
   for (let i = 1; i < points.length; i += 1) {
@@ -468,12 +650,12 @@ function drawStroke(ctx, stroke, canvas) {
 
 function drawStrokeSegment(ctx, stroke, canvas) {
   if (!stroke?.points || stroke.points.length < 2) return;
-  const last = stroke.points[stroke.points.length - 1];
-  const prev = stroke.points[stroke.points.length - 2];
+  const last = projectPointToCanvas(stroke.points[stroke.points.length - 1], canvas);
+  const prev = projectPointToCanvas(stroke.points[stroke.points.length - 2], canvas);
   applyStrokeStyle(ctx, stroke);
   ctx.beginPath();
-  ctx.moveTo(prev.x * canvas.width, prev.y * canvas.height);
-  ctx.lineTo(last.x * canvas.width, last.y * canvas.height);
+  ctx.moveTo(prev.x, prev.y);
+  ctx.lineTo(last.x, last.y);
   ctx.stroke();
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
@@ -517,7 +699,9 @@ function attachAnnotationLayer(wrapper, pageNumber, width, height, outputScale =
   function addPoint(event) {
     if (!drawing || !activeStroke) return;
     const { x, y } = getPoint(event);
-    activeStroke.points.push({ x: x / layer.width, y: y / layer.height });
+    const normalizedPoint = { x: x / layer.width, y: y / layer.height };
+    const canonicalPoint = convertViewPointToCanonical(normalizedPoint);
+    activeStroke.points.push(canonicalPoint);
     const ctx = layer.getContext('2d');
     if (activeStroke.points.length === 1) {
       drawStroke(ctx, activeStroke, layer);
@@ -582,9 +766,7 @@ function updateDrawingUiState() {
   drawingToggleButton?.classList.toggle('active', isAnnotationEnabled);
   drawingToggleButton?.classList.toggle('primary', isAnnotationEnabled);
   drawingToggleButton?.setAttribute('aria-pressed', isAnnotationEnabled ? 'true' : 'false');
-  if (drawingToggleButton?.querySelector('.button-label')) {
-    drawingToggleButton.querySelector('.button-label').textContent = isAnnotationEnabled ? 'Tekenen aan' : 'Tekenen';
-  }
+  drawingToggleButton?.setAttribute('aria-label', isAnnotationEnabled ? 'Tekenen actief' : 'Schakel tekenen');
   if (annotationPanel) {
     annotationPanel.hidden = !isAnnotationEnabled;
   }
@@ -659,6 +841,7 @@ async function openPdf(arrayBuffer) {
   restoreLastPageForDoc();
   scale = 1;
   fitMode = 'width';
+  rotation = 0;
   setDrawingEnabled(false);
   emptyState?.remove();
   renderPages();
@@ -883,9 +1066,28 @@ prevBtn.addEventListener('click', () => changePage(-1));
 nextBtn.addEventListener('click', () => changePage(1));
 zoomInBtn.addEventListener('click', () => changeZoom(scaleStep));
 zoomOutBtn.addEventListener('click', () => changeZoom(-scaleStep));
-fitHeightBtn.addEventListener('click', setZoomToFitHeight);
-fitWidthBtn.addEventListener('click', setZoomToFitWidth);
-resetZoomBtn.addEventListener('click', resetZoom);
+zoomInput?.addEventListener('change', (event) => {
+  if (!pdfDoc) return;
+  const value = Number.parseFloat(event.target.value);
+  if (Number.isNaN(value)) {
+    updateZoomStatus();
+    return;
+  }
+  const nextScale = clampZoom(value / 100);
+  fitMode = null;
+  scale = nextScale;
+  renderPages();
+});
+
+zoomInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    zoomInput.dispatchEvent(new Event('change'));
+  }
+});
+fitModeBtn.addEventListener('click', cycleFitMode);
+rotateViewBtn.addEventListener('click', rotateView);
+downloadPagesBtn.addEventListener('click', downloadVisiblePages);
 toggleViewBtn.addEventListener('click', toggleView);
 
 viewerArea?.addEventListener(
@@ -906,11 +1108,12 @@ navSearch?.addEventListener('input', (event) => {
 });
 
 sidebarToggleBtn?.addEventListener('click', () => toggleSidebar());
-sidebarMaximizeBtn?.addEventListener('click', () => maximizeSidebar());
+sidebarMaximizeBtn?.addEventListener('click', () => toggleSidebarSize());
 sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
 sidebarOverlay?.addEventListener('click', () => toggleSidebar(true));
 
 drawingToggleButton?.addEventListener('click', () => setDrawingEnabled(!isAnnotationEnabled));
+closeAnnotationBtn?.addEventListener('click', () => setDrawingEnabled(false));
 
 toolButtons.forEach((button) => {
   button.addEventListener('click', () => {
@@ -949,6 +1152,14 @@ pageInput?.addEventListener('keydown', (event) => {
   }
 });
 
+pageInput?.addEventListener('change', (event) => {
+  if (!pdfDoc) return;
+  const target = Number.parseInt(event.target.value, 10);
+  if (!Number.isNaN(target)) {
+    goToPage(target);
+  }
+});
+
 window.addEventListener('resize', () => {
   updateSidebarOverlay();
   if (!pdfDoc || !fitMode) return;
@@ -968,4 +1179,5 @@ loadNavigationData();
 
 updatePageStatus();
 updateZoomStatus();
+updateFitModeButton();
 updateButtons();
