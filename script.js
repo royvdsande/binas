@@ -27,6 +27,23 @@ const pageInput = document.getElementById('page-input');
 const pageTotal = document.getElementById('page-total');
 const zoomStatus = document.getElementById('zoom-status');
 const viewerArea = document.querySelector('.viewer-area');
+const layout = document.querySelector('.layout');
+const sidebar = document.querySelector('.sidebar');
+const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+const sidebarResizer = document.getElementById('sidebar-resizer');
+const annotationToggle = document.getElementById('annotation-toggle');
+const toolPanel = document.getElementById('tool-panel');
+const panelBody = document.getElementById('panel-body');
+const panelCollapseBtn = document.getElementById('panel-collapse');
+const strokeSizeInput = document.getElementById('stroke-size');
+const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
+const undoButton = document.getElementById('tool-undo');
+const clearButton = document.getElementById('tool-clear');
+const colorSwatches = Array.from(document.querySelectorAll('.color-swatch'));
+const calcInput = document.getElementById('calc-input');
+const calcRun = document.getElementById('calc-run');
+const calcOutput = document.getElementById('calc-output');
+const calcQuickButtons = Array.from(document.querySelectorAll('.quick-buttons button'));
 
 let pdfDoc = null;
 let currentPage = 1;
@@ -35,9 +52,21 @@ let isSpread = false;
 let fitMode = null;
 let navigationData = [];
 let userProvidedDocument = false;
+let docKey = 'default';
 const minScale = 0.2;
-const maxScale = 4;
+const maxScale = 6;
 const scaleStep = 0.15;
+const annotations = new Map();
+let isAnnotationEnabled = true;
+let currentTool = 'pen';
+let currentColor = '#e11d48';
+let currentStrokeSize = Number.parseInt(strokeSizeInput?.value || '6', 10);
+const sidebarMinWidth = 220;
+const sidebarMaxWidth = 520;
+const pageStorageKey = 'binas:last-page';
+const sidebarWidthKey = 'binas:sidebar-width';
+const sidebarCollapsedKey = 'binas:sidebar-collapsed';
+const annotationStoragePrefix = 'binas:annotations:';
 
 const singlePageIcon = `
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -149,6 +178,26 @@ function updateButtons() {
   updateToggleButtonVisual();
 }
 
+function getDocKey() {
+  return pdfDoc?.fingerprint || docKey || 'default';
+}
+
+function persistCurrentPage() {
+  if (!pdfDoc) return;
+  const stored = JSON.parse(localStorage.getItem(pageStorageKey) || '{}');
+  stored[getDocKey()] = currentPage;
+  localStorage.setItem(pageStorageKey, JSON.stringify(stored));
+}
+
+function restoreLastPageForDoc() {
+  if (!pdfDoc) return;
+  const stored = JSON.parse(localStorage.getItem(pageStorageKey) || '{}');
+  const savedPage = stored[getDocKey()];
+  if (typeof savedPage === 'number' && savedPage >= 1 && savedPage <= pdfDoc.numPages) {
+    currentPage = isSpread && savedPage % 2 === 0 ? savedPage - 1 : savedPage;
+  }
+}
+
 async function renderPages() {
   if (!pdfDoc) return;
 
@@ -187,6 +236,7 @@ async function renderPages() {
     label.className = 'page-label';
     label.textContent = `Pagina ${pageNumber}`;
     wrapper.appendChild(canvas);
+    attachAnnotationLayer(wrapper, pageNumber, viewport.width, viewport.height);
     wrapper.appendChild(label);
     pageGrid.appendChild(wrapper);
   }
@@ -194,6 +244,8 @@ async function renderPages() {
   updatePageStatus();
   updateZoomStatus();
   updateButtons();
+  persistCurrentPage();
+  refreshAnnotationInteractivity();
 }
 
 function clampZoom(newScale) {
@@ -249,10 +301,291 @@ function goToPage(targetPage) {
   renderPages();
 }
 
+function setSidebarWidth(width) {
+  const clamped = Math.min(sidebarMaxWidth, Math.max(sidebarMinWidth, width));
+  document.documentElement.style.setProperty('--sidebar-width', `${clamped}px`);
+  localStorage.setItem(sidebarWidthKey, clamped);
+}
+
+function loadSidebarPreferences() {
+  const storedWidth = Number(localStorage.getItem(sidebarWidthKey));
+  if (!Number.isNaN(storedWidth) && storedWidth >= sidebarMinWidth) {
+    setSidebarWidth(storedWidth);
+  }
+  const collapsed = localStorage.getItem(sidebarCollapsedKey) === 'true';
+  layout?.classList.toggle('sidebar-collapsed', collapsed);
+  updateSidebarToggleLabel();
+}
+
+function toggleSidebar(forceState) {
+  const nextState = typeof forceState === 'boolean' ? forceState : !layout?.classList.contains('sidebar-collapsed');
+  layout?.classList.toggle('sidebar-collapsed', nextState);
+  localStorage.setItem(sidebarCollapsedKey, nextState);
+  updateSidebarToggleLabel();
+}
+
+function updateSidebarToggleLabel() {
+  if (!sidebarToggleBtn) return;
+  const collapsed = layout?.classList.contains('sidebar-collapsed');
+  sidebarToggleBtn.setAttribute('aria-label', collapsed ? 'Open navigatie' : 'Klap navigatie in');
+}
+
+function startSidebarResize(event) {
+  if (layout?.classList.contains('sidebar-collapsed')) return;
+  event.preventDefault();
+  const startX = event.clientX;
+  const currentWidth = Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'), 10);
+
+  function onMove(moveEvent) {
+    const delta = moveEvent.clientX - startX;
+    setSidebarWidth(currentWidth + delta);
+  }
+
+  function onUp() {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  }
+
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+}
+
+function getPageAnnotations(pageNumber) {
+  if (!annotations.has(pageNumber)) {
+    annotations.set(pageNumber, []);
+  }
+  return annotations.get(pageNumber);
+}
+
+function saveAnnotationsForDoc() {
+  if (!pdfDoc) return;
+  const payload = Object.fromEntries([...annotations.entries()]);
+  try {
+    localStorage.setItem(`${annotationStoragePrefix}${getDocKey()}`, JSON.stringify(payload));
+  } catch (error) {
+    console.error('Opslaan van aantekeningen mislukt', error);
+  }
+}
+
+function loadAnnotationsForDoc() {
+  annotations.clear();
+  if (!pdfDoc) return;
+  try {
+    const stored = localStorage.getItem(`${annotationStoragePrefix}${getDocKey()}`);
+    if (!stored) return;
+    const parsed = JSON.parse(stored);
+    Object.entries(parsed).forEach(([page, strokes]) => {
+      annotations.set(Number(page), strokes);
+    });
+  } catch (error) {
+    console.error('Kan aantekeningen niet lezen', error);
+  }
+}
+
+function applyStrokeStyle(ctx, stroke) {
+  ctx.lineWidth = stroke.size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = stroke.color;
+  ctx.globalAlpha = stroke.tool === 'highlighter' ? 0.45 : 1;
+  ctx.globalCompositeOperation = stroke.mode === 'erase' ? 'destination-out' : 'source-over';
+}
+
+function drawStroke(ctx, stroke, canvas) {
+  if (!stroke?.points?.length) return;
+  applyStrokeStyle(ctx, stroke);
+  const points = stroke.points.map((point) => ({
+    x: point.x * canvas.width,
+    y: point.y * canvas.height,
+  }));
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i += 1) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  if (points.length === 1) {
+    ctx.lineTo(points[0].x + 0.1, points[0].y + 0.1);
+  }
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+}
+
+function drawStrokeSegment(ctx, stroke, canvas) {
+  if (!stroke?.points || stroke.points.length < 2) return;
+  const last = stroke.points[stroke.points.length - 1];
+  const prev = stroke.points[stroke.points.length - 2];
+  applyStrokeStyle(ctx, stroke);
+  ctx.beginPath();
+  ctx.moveTo(prev.x * canvas.width, prev.y * canvas.height);
+  ctx.lineTo(last.x * canvas.width, last.y * canvas.height);
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+}
+
+function redrawPageAnnotations(pageNumber, canvas) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const strokes = annotations.get(pageNumber) || [];
+  strokes.forEach((stroke) => drawStroke(ctx, stroke, canvas));
+}
+
+function redrawVisibleAnnotations() {
+  document.querySelectorAll('.annotation-layer').forEach((layer) => {
+    const page = Number(layer.dataset.page);
+    redrawPageAnnotations(page, layer);
+  });
+}
+
+function attachAnnotationLayer(wrapper, pageNumber, width, height) {
+  const layer = document.createElement('canvas');
+  layer.className = 'annotation-layer';
+  layer.width = width;
+  layer.height = height;
+  layer.dataset.page = pageNumber;
+  wrapper.appendChild(layer);
+  redrawPageAnnotations(pageNumber, layer);
+
+  let drawing = false;
+  let activeStroke = null;
+
+  const getPoint = (event) => {
+    const rect = layer.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) * layer.width) / rect.width;
+    const y = ((event.clientY - rect.top) * layer.height) / rect.height;
+    return { x, y };
+  };
+
+  function addPoint(event) {
+    if (!drawing || !activeStroke) return;
+    const { x, y } = getPoint(event);
+    activeStroke.points.push({ x: x / layer.width, y: y / layer.height });
+    const ctx = layer.getContext('2d');
+    if (activeStroke.points.length === 1) {
+      drawStroke(ctx, activeStroke, layer);
+    } else {
+      drawStrokeSegment(ctx, activeStroke, layer);
+    }
+  }
+
+  layer.addEventListener('pointerdown', (event) => {
+    if (!isAnnotationEnabled) return;
+    drawing = true;
+    activeStroke = {
+      tool: currentTool,
+      mode: currentTool === 'eraser' ? 'erase' : 'draw',
+      color: currentColor,
+      size: currentStrokeSize,
+      points: [],
+    };
+    addPoint(event);
+    layer.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+
+  layer.addEventListener('pointermove', (event) => {
+    if (!drawing) return;
+    addPoint(event);
+    event.preventDefault();
+  });
+
+  layer.addEventListener('pointerup', (event) => {
+    if (drawing && activeStroke?.points?.length) {
+      const pageAnnotations = getPageAnnotations(pageNumber);
+      pageAnnotations.push(activeStroke);
+      saveAnnotationsForDoc();
+    }
+    if (layer.hasPointerCapture(event.pointerId)) {
+      layer.releasePointerCapture(event.pointerId);
+    }
+    drawing = false;
+    activeStroke = null;
+  });
+
+  layer.addEventListener('pointercancel', (event) => {
+    if (layer.hasPointerCapture(event.pointerId)) {
+      layer.releasePointerCapture(event.pointerId);
+    }
+    drawing = false;
+    activeStroke = null;
+  });
+}
+
+function refreshAnnotationInteractivity() {
+  document.body.classList.toggle('annotations-disabled', !isAnnotationEnabled);
+  document.querySelectorAll('.annotation-layer').forEach((layer) => {
+    layer.style.pointerEvents = isAnnotationEnabled ? 'auto' : 'none';
+    layer.style.touchAction = isAnnotationEnabled ? 'none' : 'auto';
+  });
+}
+
+function setActiveTool(tool) {
+  currentTool = tool;
+  toolButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.tool === tool);
+  });
+}
+
+function setActiveColor(color) {
+  currentColor = color;
+  colorSwatches.forEach((swatch) => {
+    swatch.classList.toggle('active', swatch.dataset.color === color);
+  });
+}
+
+function undoAnnotation(pageNumber = currentPage) {
+  const pageAnnotations = getPageAnnotations(pageNumber);
+  pageAnnotations.pop();
+  saveAnnotationsForDoc();
+  redrawVisibleAnnotations();
+}
+
+function clearPageAnnotations(pageNumber = currentPage) {
+  annotations.set(pageNumber, []);
+  saveAnnotationsForDoc();
+  redrawVisibleAnnotations();
+}
+
+function handleCalculation() {
+  if (!calcInput || !calcOutput) return;
+  const raw = calcInput.value.trim();
+  if (!raw) {
+    calcOutput.textContent = 'Voer een berekening in.';
+    return;
+  }
+  try {
+    const prepared = raw
+      .replace(/π/g, Math.PI.toString())
+      .replace(/√/g, 'Math.sqrt')
+      .replace(/\^/g, '**');
+    // eslint-disable-next-line no-new-func
+    const evaluator = new Function(`"use strict"; return (${prepared});`);
+    const result = evaluator();
+    calcOutput.textContent = Number.isFinite(result) ? result : 'Ongeldige bewerking';
+  } catch (error) {
+    calcOutput.textContent = 'Fout in formule';
+  }
+}
+
+function insertIntoCalc(value) {
+  if (!calcInput) return;
+  const start = calcInput.selectionStart ?? calcInput.value.length;
+  const end = calcInput.selectionEnd ?? calcInput.value.length;
+  const current = calcInput.value;
+  calcInput.value = current.slice(0, start) + value + current.slice(end);
+  const newCaret = start + value.length;
+  calcInput.setSelectionRange(newCaret, newCaret);
+  calcInput.focus();
+}
+
 async function openPdf(arrayBuffer) {
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
   pdfDoc = await loadingTask.promise;
+  docKey = getDocKey();
+  loadAnnotationsForDoc();
   currentPage = 1;
+  restoreLastPageForDoc();
   scale = 1;
   fitMode = null;
   emptyState?.remove();
@@ -530,6 +863,43 @@ tocOverlay?.addEventListener('click', (event) => {
   }
 });
 
+sidebarToggleBtn?.addEventListener('click', () => toggleSidebar());
+sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
+panelCollapseBtn?.addEventListener('click', () => {
+  toolPanel?.classList.toggle('panel-collapsed');
+});
+
+annotationToggle?.addEventListener('change', (event) => {
+  isAnnotationEnabled = event.target.checked;
+  refreshAnnotationInteractivity();
+});
+
+toolButtons.forEach((button) => {
+  button.addEventListener('click', () => setActiveTool(button.dataset.tool));
+});
+
+colorSwatches.forEach((swatch) => {
+  swatch.addEventListener('click', () => setActiveColor(swatch.dataset.color));
+});
+
+strokeSizeInput?.addEventListener('input', (event) => {
+  currentStrokeSize = Number.parseInt(event.target.value, 10) || currentStrokeSize;
+});
+
+undoButton?.addEventListener('click', () => undoAnnotation());
+clearButton?.addEventListener('click', () => clearPageAnnotations());
+
+calcRun?.addEventListener('click', handleCalculation);
+calcInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    handleCalculation();
+  }
+});
+
+calcQuickButtons.forEach((button) => {
+  button.addEventListener('click', () => insertIntoCalc(button.dataset.insert));
+});
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && tocOverlay?.classList.contains('visible')) {
     closeTocOverlay();
@@ -549,6 +919,17 @@ window.addEventListener('resize', () => {
   if (!pdfDoc || !fitMode) return;
   renderPages();
 });
+
+loadSidebarPreferences();
+if (window.innerWidth < 900 && localStorage.getItem(sidebarCollapsedKey) === null) {
+  toggleSidebar(true);
+}
+setActiveTool(currentTool);
+setActiveColor(currentColor);
+if (annotationToggle) {
+  annotationToggle.checked = isAnnotationEnabled;
+}
+refreshAnnotationInteractivity();
 
 loadDefaultPdf();
 loadNavigationData();
