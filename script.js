@@ -33,11 +33,13 @@ const sidebarToggleBtn = document.getElementById('sidebar-toggle');
 const sidebarResizer = document.getElementById('sidebar-resizer');
 const annotationMenuToggle = document.getElementById('annotation-menu-toggle');
 const annotationMenu = document.getElementById('annotation-menu');
-const modeButtons = Array.from(document.querySelectorAll('.mode-button[data-mode]'));
+const drawingToggleButton = document.getElementById('drawing-toggle');
 const strokeSizeInput = document.getElementById('stroke-size');
 const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
 const undoButton = document.getElementById('tool-undo');
+const redoButton = document.getElementById('tool-redo');
 const clearButton = document.getElementById('tool-clear');
+const clearAllButton = document.getElementById('tool-clear-all');
 const colorSwatches = Array.from(document.querySelectorAll('.color-swatch'));
 const sidebarOverlay = document.getElementById('sidebar-overlay');
 
@@ -53,8 +55,8 @@ const minScale = 0.2;
 const maxScale = 6;
 const scaleStep = 0.15;
 const annotations = new Map();
+const redoStacks = new Map();
 let isAnnotationEnabled = false;
-let currentMode = 'normal';
 let currentTool = 'pen';
 let currentColor = '#e11d48';
 let currentStrokeSize = Number.parseInt(strokeSizeInput?.value || '6', 10);
@@ -172,6 +174,8 @@ function updateButtons() {
   fitWidthBtn.disabled = !hasDoc;
   resetZoomBtn.disabled = !hasDoc || (!fitMode && scale === 1);
   toggleViewBtn.disabled = !hasDoc;
+  annotationMenuToggle?.toggleAttribute('disabled', !hasDoc);
+  drawingToggleButton?.toggleAttribute('disabled', !hasDoc);
   updateToggleButtonVisual();
 }
 
@@ -214,14 +218,22 @@ async function renderPages() {
   for (const pageNumber of pagesToRender) {
     const page = await pdfDoc.getPage(pageNumber);
     const viewport = page.getViewport({ scale });
+    const outputScale = window.devicePixelRatio || 1;
+    const displayWidth = viewport.width;
+    const displayHeight = viewport.height;
 
     const canvas = document.createElement('canvas');
     canvas.className = 'page-canvas';
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    canvas.width = displayWidth * outputScale;
+    canvas.height = displayHeight * outputScale;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+
+    const context = canvas.getContext('2d');
+    context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
 
     const renderContext = {
-      canvasContext: canvas.getContext('2d'),
+      canvasContext: context,
       viewport,
     };
 
@@ -232,10 +244,23 @@ async function renderPages() {
     const label = document.createElement('span');
     label.className = 'page-label';
     label.textContent = `Pagina ${pageNumber}`;
+    const textLayer = document.createElement('div');
+    textLayer.className = 'text-layer';
+    textLayer.style.width = `${displayWidth}px`;
+    textLayer.style.height = `${displayHeight}px`;
     wrapper.appendChild(canvas);
-    attachAnnotationLayer(wrapper, pageNumber, viewport.width, viewport.height);
+    wrapper.appendChild(textLayer);
+    attachAnnotationLayer(wrapper, pageNumber, displayWidth, displayHeight, outputScale);
     wrapper.appendChild(label);
     pageGrid.appendChild(wrapper);
+
+    const textContent = await page.getTextContent();
+    await pdfjsLib.renderTextLayer({
+      textContent,
+      container: textLayer,
+      viewport,
+      textDivs: [],
+    }).promise;
   }
 
   updatePageStatus();
@@ -365,6 +390,17 @@ function getPageAnnotations(pageNumber) {
   return annotations.get(pageNumber);
 }
 
+function getRedoStack(pageNumber) {
+  if (!redoStacks.has(pageNumber)) {
+    redoStacks.set(pageNumber, []);
+  }
+  return redoStacks.get(pageNumber);
+}
+
+function clearRedoStack(pageNumber) {
+  redoStacks.set(pageNumber, []);
+}
+
 function saveAnnotationsForDoc() {
   if (!pdfDoc) return;
   const payload = Object.fromEntries([...annotations.entries()]);
@@ -377,6 +413,7 @@ function saveAnnotationsForDoc() {
 
 function loadAnnotationsForDoc() {
   annotations.clear();
+  redoStacks.clear();
   if (!pdfDoc) return;
   try {
     const stored = localStorage.getItem(`${annotationStoragePrefix}${getDocKey()}`);
@@ -446,11 +483,13 @@ function redrawVisibleAnnotations() {
   });
 }
 
-function attachAnnotationLayer(wrapper, pageNumber, width, height) {
+function attachAnnotationLayer(wrapper, pageNumber, width, height, outputScale = 1) {
   const layer = document.createElement('canvas');
   layer.className = 'annotation-layer';
-  layer.width = width;
-  layer.height = height;
+  layer.width = width * outputScale;
+  layer.height = height * outputScale;
+  layer.style.width = `${width}px`;
+  layer.style.height = `${height}px`;
   layer.dataset.page = pageNumber;
   wrapper.appendChild(layer);
   redrawPageAnnotations(pageNumber, layer);
@@ -502,6 +541,7 @@ function attachAnnotationLayer(wrapper, pageNumber, width, height) {
     if (drawing && activeStroke?.points?.length) {
       const pageAnnotations = getPageAnnotations(pageNumber);
       pageAnnotations.push(activeStroke);
+      clearRedoStack(pageNumber);
       saveAnnotationsForDoc();
     }
     if (layer.hasPointerCapture(event.pointerId)) {
@@ -528,28 +568,21 @@ function refreshAnnotationInteractivity() {
   });
 }
 
-function updateModeButtons() {
-  modeButtons.forEach((button) => {
-    button.classList.toggle('active', button.dataset.mode === currentMode);
-  });
-  annotationMenuToggle?.toggleAttribute('disabled', currentMode !== 'draw');
-  annotationMenuToggle?.classList.toggle('primary', currentMode === 'draw');
-  annotationMenuToggle?.setAttribute(
-    'aria-label',
-    currentMode === 'draw' ? 'Open tekentools' : 'Tekentools beschikbaar in tekenmodus'
-  );
+function updateDrawingUiState() {
+  annotationMenuToggle?.classList.toggle('active', isAnnotationEnabled);
+  annotationMenuToggle?.classList.toggle('primary', isAnnotationEnabled);
+  annotationMenuToggle?.setAttribute('aria-pressed', isAnnotationEnabled ? 'true' : 'false');
+  annotationMenuToggle?.setAttribute('aria-label', isAnnotationEnabled ? 'Tekenen actief' : 'Open tekentools');
+  if (drawingToggleButton) {
+    drawingToggleButton.setAttribute('aria-pressed', isAnnotationEnabled ? 'true' : 'false');
+    drawingToggleButton.textContent = isAnnotationEnabled ? 'Tekenen aan' : 'Tekenen uit';
+  }
 }
 
-function setMode(nextMode) {
-  if (!['normal', 'draw'].includes(nextMode)) return;
-  const modeChanged = currentMode !== nextMode;
-  currentMode = nextMode;
-  isAnnotationEnabled = currentMode === 'draw';
+function setDrawingEnabled(enabled) {
+  isAnnotationEnabled = Boolean(enabled);
   refreshAnnotationInteractivity();
-  updateModeButtons();
-  if (modeChanged && currentMode !== 'draw') {
-    closeAnnotationMenu();
-  }
+  updateDrawingUiState();
 }
 
 function closeAnnotationMenu() {
@@ -561,11 +594,13 @@ function closeAnnotationMenu() {
 
 function toggleAnnotationMenu() {
   if (!annotationMenu || !annotationMenuToggle) return;
-  if (currentMode !== 'draw') return;
   const willOpen = annotationMenu.hidden;
   annotationMenu.hidden = !willOpen;
   annotationMenu.classList.toggle('open', willOpen);
   annotationMenuToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  if (willOpen) {
+    updateDrawingUiState();
+  }
 }
 
 function setActiveTool(tool) {
@@ -584,13 +619,39 @@ function setActiveColor(color) {
 
 function undoAnnotation(pageNumber = currentPage) {
   const pageAnnotations = getPageAnnotations(pageNumber);
-  pageAnnotations.pop();
+  const stroke = pageAnnotations.pop();
+  if (stroke) {
+    getRedoStack(pageNumber).push(stroke);
+  }
   saveAnnotationsForDoc();
   redrawVisibleAnnotations();
 }
 
+function redoAnnotation(pageNumber = currentPage) {
+  const redoStack = getRedoStack(pageNumber);
+  const stroke = redoStack.pop();
+  if (stroke) {
+    getPageAnnotations(pageNumber).push(stroke);
+    saveAnnotationsForDoc();
+    redrawVisibleAnnotations();
+  }
+}
+
 function clearPageAnnotations(pageNumber = currentPage) {
   annotations.set(pageNumber, []);
+  clearRedoStack(pageNumber);
+  saveAnnotationsForDoc();
+  redrawVisibleAnnotations();
+}
+
+function clearAllAnnotations() {
+  annotations.clear();
+  redoStacks.clear();
+  try {
+    localStorage.removeItem(`${annotationStoragePrefix}${getDocKey()}`);
+  } catch (error) {
+    console.error('Kon aantekeningen niet wissen', error);
+  }
   saveAnnotationsForDoc();
   redrawVisibleAnnotations();
 }
@@ -603,7 +664,8 @@ async function openPdf(arrayBuffer) {
   currentPage = 1;
   restoreLastPageForDoc();
   scale = 1;
-  fitMode = null;
+  fitMode = 'width';
+  setDrawingEnabled(false);
   emptyState?.remove();
   renderPages();
 }
@@ -883,15 +945,9 @@ sidebarToggleBtn?.addEventListener('click', () => toggleSidebar());
 sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
 sidebarOverlay?.addEventListener('click', () => toggleSidebar(true));
 
-modeButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    const activatingDraw = button.dataset.mode === 'draw' && currentMode !== 'draw';
-    setMode(button.dataset.mode);
-    if (activatingDraw) {
-      toggleAnnotationMenu();
-    }
-  });
-});
+annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
+
+drawingToggleButton?.addEventListener('click', () => setDrawingEnabled(!isAnnotationEnabled));
 
 annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
 
@@ -905,7 +961,12 @@ document.addEventListener('click', (event) => {
 });
 
 toolButtons.forEach((button) => {
-  button.addEventListener('click', () => setActiveTool(button.dataset.tool));
+  button.addEventListener('click', () => {
+    setActiveTool(button.dataset.tool);
+    if (!isAnnotationEnabled) {
+      setDrawingEnabled(true);
+    }
+  });
 });
 
 colorSwatches.forEach((swatch) => {
@@ -917,7 +978,9 @@ strokeSizeInput?.addEventListener('input', (event) => {
 });
 
 undoButton?.addEventListener('click', () => undoAnnotation());
+redoButton?.addEventListener('click', () => redoAnnotation());
 clearButton?.addEventListener('click', () => clearPageAnnotations());
+clearAllButton?.addEventListener('click', () => clearAllAnnotations());
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
@@ -949,7 +1012,7 @@ loadSidebarPreferences();
 if (window.innerWidth < 900 && localStorage.getItem(sidebarCollapsedKey) === null) {
   toggleSidebar(true);
 }
-setMode(currentMode);
+setDrawingEnabled(false);
 setActiveTool(currentTool);
 setActiveColor(currentColor);
 
