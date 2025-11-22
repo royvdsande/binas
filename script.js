@@ -32,18 +32,13 @@ const sidebar = document.querySelector('.sidebar');
 const sidebarToggleBtn = document.getElementById('sidebar-toggle');
 const sidebarResizer = document.getElementById('sidebar-resizer');
 const annotationToggle = document.getElementById('annotation-toggle');
-const toolPanel = document.getElementById('tool-panel');
-const panelBody = document.getElementById('panel-body');
-const panelCollapseBtn = document.getElementById('panel-collapse');
+const annotationMenuToggle = document.getElementById('annotation-menu-toggle');
+const annotationMenu = document.getElementById('annotation-menu');
 const strokeSizeInput = document.getElementById('stroke-size');
 const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
 const undoButton = document.getElementById('tool-undo');
 const clearButton = document.getElementById('tool-clear');
 const colorSwatches = Array.from(document.querySelectorAll('.color-swatch'));
-const calcInput = document.getElementById('calc-input');
-const calcRun = document.getElementById('calc-run');
-const calcOutput = document.getElementById('calc-output');
-const calcQuickButtons = Array.from(document.querySelectorAll('.quick-buttons button'));
 
 let pdfDoc = null;
 let currentPage = 1;
@@ -520,6 +515,21 @@ function refreshAnnotationInteractivity() {
   });
 }
 
+function closeAnnotationMenu() {
+  if (!annotationMenu || !annotationMenuToggle) return;
+  annotationMenu.hidden = true;
+  annotationMenu.classList.remove('open');
+  annotationMenuToggle.setAttribute('aria-expanded', 'false');
+}
+
+function toggleAnnotationMenu() {
+  if (!annotationMenu || !annotationMenuToggle) return;
+  const willOpen = annotationMenu.hidden;
+  annotationMenu.hidden = !willOpen;
+  annotationMenu.classList.toggle('open', willOpen);
+  annotationMenuToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+}
+
 function setActiveTool(tool) {
   currentTool = tool;
   toolButtons.forEach((button) => {
@@ -545,38 +555,6 @@ function clearPageAnnotations(pageNumber = currentPage) {
   annotations.set(pageNumber, []);
   saveAnnotationsForDoc();
   redrawVisibleAnnotations();
-}
-
-function handleCalculation() {
-  if (!calcInput || !calcOutput) return;
-  const raw = calcInput.value.trim();
-  if (!raw) {
-    calcOutput.textContent = 'Voer een berekening in.';
-    return;
-  }
-  try {
-    const prepared = raw
-      .replace(/π/g, Math.PI.toString())
-      .replace(/√/g, 'Math.sqrt')
-      .replace(/\^/g, '**');
-    // eslint-disable-next-line no-new-func
-    const evaluator = new Function(`"use strict"; return (${prepared});`);
-    const result = evaluator();
-    calcOutput.textContent = Number.isFinite(result) ? result : 'Ongeldige bewerking';
-  } catch (error) {
-    calcOutput.textContent = 'Fout in formule';
-  }
-}
-
-function insertIntoCalc(value) {
-  if (!calcInput) return;
-  const start = calcInput.selectionStart ?? calcInput.value.length;
-  const end = calcInput.selectionEnd ?? calcInput.value.length;
-  const current = calcInput.value;
-  calcInput.value = current.slice(0, start) + value + current.slice(end);
-  const newCaret = start + value.length;
-  calcInput.setSelectionRange(newCaret, newCaret);
-  calcInput.focus();
 }
 
 async function openPdf(arrayBuffer) {
@@ -865,8 +843,16 @@ tocOverlay?.addEventListener('click', (event) => {
 
 sidebarToggleBtn?.addEventListener('click', () => toggleSidebar());
 sidebarResizer?.addEventListener('pointerdown', startSidebarResize);
-panelCollapseBtn?.addEventListener('click', () => {
-  toolPanel?.classList.toggle('panel-collapsed');
+
+annotationMenuToggle?.addEventListener('click', () => toggleAnnotationMenu());
+
+document.addEventListener('click', (event) => {
+  if (!annotationMenu || !annotationMenuToggle) return;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (annotationMenu.hidden) return;
+  if (annotationMenu.contains(target) || annotationMenuToggle.contains(target)) return;
+  closeAnnotationMenu();
 });
 
 annotationToggle?.addEventListener('change', (event) => {
@@ -889,20 +875,14 @@ strokeSizeInput?.addEventListener('input', (event) => {
 undoButton?.addEventListener('click', () => undoAnnotation());
 clearButton?.addEventListener('click', () => clearPageAnnotations());
 
-calcRun?.addEventListener('click', handleCalculation);
-calcInput?.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') {
-    handleCalculation();
-  }
-});
-
-calcQuickButtons.forEach((button) => {
-  button.addEventListener('click', () => insertIntoCalc(button.dataset.insert));
-});
-
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && tocOverlay?.classList.contains('visible')) {
-    closeTocOverlay();
+  if (event.key === 'Escape') {
+    if (tocOverlay?.classList.contains('visible')) {
+      closeTocOverlay();
+    }
+    if (!annotationMenu?.hidden) {
+      closeAnnotationMenu();
+    }
   }
 });
 

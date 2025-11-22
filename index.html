@@ -130,6 +130,50 @@
 
         <div class="controls-right">
           <div class="status no-select" id="zoom-status">Zoom: 100%</div>
+          <div class="annotation-menu-wrapper">
+            <button
+              id="annotation-menu-toggle"
+              class="secondary"
+              aria-expanded="false"
+              aria-controls="annotation-menu"
+              aria-label="Open tekentools"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m12 20 7-7-4-4-7 7-2 5z" />
+                <path d="M15 9 9 15" />
+              </svg>
+              <span>Tekenen</span>
+            </button>
+            <div class="annotation-menu" id="annotation-menu" hidden>
+              <div class="section-header">
+                <div>
+                  <p class="section-title">Tekenen</p>
+                  <p class="section-subtitle">Maak aantekeningen over de pagina</p>
+                </div>
+                <label class="switch" aria-label="Schakel tekenen in of uit">
+                  <input type="checkbox" id="annotation-toggle" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="tool-row" role="group" aria-label="Tekentools">
+                <button class="tool-button primary" data-tool="pen" id="tool-pen">Pen</button>
+                <button class="tool-button" data-tool="highlighter" id="tool-highlighter">Markeer</button>
+                <button class="tool-button" data-tool="eraser" id="tool-eraser">Gum</button>
+                <button class="tool-button" data-action="undo" id="tool-undo">Undo</button>
+                <button class="tool-button" data-action="clear" id="tool-clear">Wis</button>
+              </div>
+              <div class="tool-row colors" role="group" aria-label="Kleuren">
+                <button class="color-swatch" data-color="#e11d48" style="--swatch:#e11d48"></button>
+                <button class="color-swatch" data-color="#0ea5e9" style="--swatch:#0ea5e9"></button>
+                <button class="color-swatch" data-color="#16a34a" style="--swatch:#16a34a"></button>
+                <button class="color-swatch" data-color="#f97316" style="--swatch:#f97316"></button>
+                <button class="color-swatch" data-color="#111827" style="--swatch:#111827"></button>
+              </div>
+              <label class="slider-row" for="stroke-size">Dikte
+                <input type="range" id="stroke-size" min="2" max="20" value="6" />
+              </label>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -145,73 +189,6 @@
           </div>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="floating-panel" id="tool-panel" aria-label="Tekenen en rekentools">
-    <div class="panel-header">
-      <div class="panel-title">Tools</div>
-      <div class="panel-actions">
-        <button id="panel-collapse" class="icon-button" aria-label="Klap toolpaneel in">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m7 10 5 5 5-5" />
-          </svg>
-        </button>
-      </div>
-    </div>
-    <div class="panel-body" id="panel-body">
-      <section class="tool-section">
-        <div class="section-header">
-          <div>
-            <p class="section-title">Tekenen</p>
-            <p class="section-subtitle">Maak aantekeningen over elke pagina</p>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="annotation-toggle" />
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="tool-row" role="group" aria-label="Tekentools">
-          <button class="tool-button primary" data-tool="pen" id="tool-pen">Pen</button>
-          <button class="tool-button" data-tool="highlighter" id="tool-highlighter">Markeer</button>
-          <button class="tool-button" data-tool="eraser" id="tool-eraser">Gum</button>
-          <button class="tool-button" data-action="undo" id="tool-undo">Undo</button>
-          <button class="tool-button" data-action="clear" id="tool-clear">Wis pagina</button>
-        </div>
-        <div class="tool-row colors" role="group" aria-label="Kleuren">
-          <button class="color-swatch" data-color="#e11d48" style="--swatch:#e11d48"></button>
-          <button class="color-swatch" data-color="#0ea5e9" style="--swatch:#0ea5e9"></button>
-          <button class="color-swatch" data-color="#16a34a" style="--swatch:#16a34a"></button>
-          <button class="color-swatch" data-color="#f97316" style="--swatch:#f97316"></button>
-          <button class="color-swatch" data-color="#111827" style="--swatch:#111827"></button>
-        </div>
-        <label class="slider-row" for="stroke-size">Dikte
-          <input type="range" id="stroke-size" min="2" max="20" value="6" />
-        </label>
-      </section>
-
-      <section class="tool-section">
-        <div class="section-header">
-          <div>
-            <p class="section-title">Rekentool</p>
-            <p class="section-subtitle">Vlotte berekeningen in een zwevend paneel</p>
-          </div>
-        </div>
-        <div class="calculator">
-          <div class="calc-row">
-            <input id="calc-input" type="text" inputmode="decimal" placeholder="3*(2+5)" aria-label="Voer berekening in" />
-            <button id="calc-run" class="primary">=</button>
-          </div>
-          <div class="calc-row quick-buttons" aria-label="Snelle rekentools">
-            <button data-insert="π">π</button>
-            <button data-insert="√">√</button>
-            <button data-insert="^">^</button>
-            <button data-insert="/">/</button>
-            <button data-insert="*">*</button>
-          </div>
-          <div class="calc-output" id="calc-output" aria-live="polite">Klaar voor gebruik</div>
-        </div>
-      </section>
     </div>
   </div>
 
